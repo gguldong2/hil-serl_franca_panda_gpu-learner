@@ -1,0 +1,16 @@
+diff --git a/gym_hil/wrappers/intervention_utils.py b/gym_hil/wrappers/intervention_utils.py
+index 8995ac6..e64a7d0 100644
+--- a/gym_hil/wrappers/intervention_utils.py
++++ b/gym_hil/wrappers/intervention_utils.py
+@@ -209,6 +209,11 @@ class KeyboardController(InputController):
+         """Stop the keyboard listener."""
+         if self.listener and self.listener.is_alive():
+             self.listener.stop()
++            # pynput 의 stop() 은 X RECORD 컨텍스트를 비동기로 끊기만 하고 바로 돌아온다.
++            # 리스너 스레드가 아직 X 연결을 쓰는 동안 프로세스가 끝나면 GLFW 의 atexit
++            # terminate() 와 겹쳐 종료 시점에 SIGSEGV 가 난다(헤드리스 X11/VNC 에서 재현).
++            # 스레드가 실제로 끝난 것을 확인하고 넘어간다.
++            self.listener.join(timeout=2.0)
+ 
+     def get_deltas(self):
+         """Get the current movement deltas from keyboard state."""

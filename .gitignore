@@ -1,0 +1,48 @@
+# ---------------------------------------------------------------------------
+# 이 저장소에 올리지 않는 것들과 그 이유.
+# "왜 없는지"와 "어떻게 다시 만드는지"는 README.md §2 에 정리되어 있다.
+# ---------------------------------------------------------------------------
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# venv (7.5 GB) — scripts/server22/02_setup_project.sh 가 다시 만든다
+/.venv/
+
+# 상류 저장소 (70 MB) — 02_setup_project.sh 가 고정 커밋으로 clone 한 뒤
+# docs/patches/ 를 적용한다. 소스를 복사해 두면 패치와 어긋날 수 있어 올리지 않는다.
+/third_party/
+
+# NVIDIA 유저스페이스 GL 라이브러리 (127 MB)
+# 커널 드라이버 버전에 묶인 바이너리이고 재배포 대상도 아니다.
+# 그 머신에서 scripts/server22/05_nvidia_gl.sh 로 다시 받는다.
+/nvidia-gl/
+
+# Hugging Face 캐시 (5.5 GB) — 첫 실행 때 자동으로 받는다
+/cache/
+
+# 학습 산출물 (40 GB). 성공 샘플 하나(pretrained_model)만 남긴다.
+/outputs/*
+!/outputs/releases/
+/outputs/releases/*
+!/outputs/releases/03_exp_b_assist_step242000/
+/outputs/releases/03_exp_b_assist_step242000/*
+!/outputs/releases/03_exp_b_assist_step242000/README.md
+!/outputs/releases/03_exp_b_assist_step242000/pretrained_model/
+
+# 시연 데이터: 학습 입력이라 병합본은 올린다(40 MB).
+# 병합 전 녹화 세션(place_demo_01..05)은 중복이라 올리지 않는다.
+/data/*
+!/data/panda_place_cube_demo/
+
+# 머신 고유 / 전송용 아티팩트
+/.python312_path
+/hil-serl-bundle.tgz
+*.bundle-orig
+
+# 에디터
+.vscode/
+.idea/
+*.swp

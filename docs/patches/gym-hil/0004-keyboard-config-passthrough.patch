@@ -1,0 +1,14 @@
+diff --git a/gym_hil/wrappers/hil_wrappers.py b/gym_hil/wrappers/hil_wrappers.py
+index bbb857b..eb0b5ad 100644
+--- a/gym_hil/wrappers/hil_wrappers.py
++++ b/gym_hil/wrappers/hil_wrappers.py
+@@ -164,6 +164,9 @@ class InputsControlWrapper(gym.Wrapper):
+                 x_step_size=x_step_size,
+                 y_step_size=y_step_size,
+                 z_step_size=z_step_size,
++                # 키 배치도 게임패드처럼 파일로 바꿀 수 있게 한다.
++                # 지정하지 않으면 GYM_HIL_KEYMAP 환경변수를, 그것도 없으면 내장 기본값을 쓴다.
++                config_path=controller_config_path,
+             )
+ 
+         self.auto_reset = auto_reset

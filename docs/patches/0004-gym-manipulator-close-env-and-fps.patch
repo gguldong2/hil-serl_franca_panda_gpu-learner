@@ -1,0 +1,51 @@
+diff --git a/src/lerobot/rl/gym_manipulator.py b/src/lerobot/rl/gym_manipulator.py
+index 03f7b4e..443b04b 100644
+--- a/src/lerobot/rl/gym_manipulator.py
++++ b/src/lerobot/rl/gym_manipulator.py
+@@ -320,12 +320,19 @@ def make_robot_env(cfg: HILSerlRobotEnvConfig) -> tuple[gym.Env, Any]:
+         use_gripper = cfg.processor.gripper.use_gripper if cfg.processor.gripper is not None else True
+         gripper_penalty = cfg.processor.gripper.gripper_penalty if cfg.processor.gripper is not None else 0.0
+ 
++        # 시뮬레이터의 제어 주기를 설정의 fps 에 맞춘다. 이걸 넘기지 않으면 환경은
++        # 자기 기본값(10 Hz)으로 돌면서 제어 루프만 cfg.fps 로 돌아 둘이 어긋난다.
++        # 이동 보폭도 같이 나눠 줘야 fps 를 올려도 초당 이동 속도가 유지된다.
++        step_per_second = 0.25  # m/s. fps 로 나누면 스텝당 이동량이 된다(10 Hz 에서 2.5 cm).
++        ee_step = step_per_second / cfg.fps
+         env = gym.make(
+             f"gym_hil/{cfg.task}",
+             image_obs=True,
+             render_mode="human",
+             use_gripper=use_gripper,
+             gripper_penalty=gripper_penalty,
++            control_dt=1.0 / cfg.fps,
++            ee_step_size={"x": ee_step, "y": ee_step, "z": ee_step},
+         )
+ 
+         return env, None
+@@ -813,11 +820,22 @@ def main(cfg: GymManipulatorConfig) -> None:
+     print("Environment processor:", env_processor)
+     print("Action processor:", action_processor)
+ 
+-    if cfg.mode == "replay":
+-        replay_trajectory(env, action_processor, cfg)
+-        exit()
++    try:
++        if cfg.mode == "replay":
++            replay_trajectory(env, action_processor, cfg)
++            return
+ 
+-    control_loop(env, env_processor, action_processor, teleop_device, cfg)
++        control_loop(env, env_processor, action_processor, teleop_device, cfg)
++    finally:
++        # 뷰어 스레드와 키보드 리스너 스레드를 인터프리터 종료 전에 정리한다.
++        # 정리하지 않으면 MuJoCo 패시브 뷰어 스레드가 살아 있는 상태에서 pynput 의
++        # X RECORD 스레드가 내려가며 종료 시점에 SIGSEGV(core dump)가 난다.
++        # 데이터는 이미 저장된 뒤라 손실은 없지만 종료 코드가 139 로 나와
++        # 스크립트에서 성공/실패를 구분할 수 없다.
++        try:
++            env.close()
++        except Exception:
++            logging.exception("환경을 닫는 중 오류가 발생했다")
+ 
+ 
+ if __name__ == "__main__":

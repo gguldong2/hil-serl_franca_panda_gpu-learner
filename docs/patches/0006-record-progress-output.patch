@@ -1,0 +1,43 @@
+--- a/src/lerobot/rl/gym_manipulator.py
++++ b/src/lerobot/rl/gym_manipulator.py
+@@ -81,6 +81,10 @@
+ from .joint_observations_processor import JointVelocityProcessorStep, MotorCurrentProcessorStep
+ 
+ logging.basicConfig(level=logging.INFO)
++# basicConfig 는 루트 로거에 핸들러가 이미 있으면 아무 일도 하지 않는다. 다른 패키지가 먼저
++# 핸들러를 달아 두는 바람에 루트 레벨이 WARNING 으로 남아 녹화 진행 로그가 하나도 보이지
++# 않았다. 레벨만 직접 올린다.
++logging.getLogger().setLevel(logging.INFO)
+ 
+ 
+ @dataclass
+@@ -755,15 +759,29 @@
+                 )
+                 episode_step = 0
+                 episode_idx += 1
++                # 상류는 이 값을 한 번만 잡고 다시 잡지 않아 에피소드 시간이 누적된다. 매번 다시 잡는다.
++                episode_start_time = time.perf_counter()
+ 
+                 if dataset is not None:
++                    total = cfg.dataset.num_episodes_to_record
++                    reward = transition[TransitionKey.REWARD]
+                     if transition[TransitionKey.INFO].get(TeleopEvents.RERECORD_EPISODE, False):
+                         logging.info(f"Re-recording episode {episode_idx}")
+                         dataset.clear_episode_buffer()
+                         episode_idx -= 1
++                        print(
++                            f"[녹화] 버림 (r). 저장된 것은 그대로 {episode_idx}/{total} 개. 다시 녹화한다.",
++                            flush=True,
++                        )
+                     else:
+                         logging.info(f"Saving episode {episode_idx}")
+                         dataset.save_episode()
++                        mark = "성공" if reward and reward > 0 else "실패"
++                        print(
++                            f"[녹화] {episode_idx}/{total} 개 저장됨  ({mark}, 보상 {reward:.1f}, {episode_time:.0f}초)"
++                            + ("   <- 여기서 Ctrl+C 로 멈춰도 이만큼은 남는다" if episode_idx < total else ""),
++                            flush=True,
++                        )
+ 
+                 # Reset for new episode
+                 transition = reset_and_build_transition(env, env_processor, action_processor)

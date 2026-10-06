@@ -1,0 +1,967 @@
+diff --git a/gym_hil/__init__.py b/gym_hil/__init__.py
+index 8dd62e0..cd7c4bf 100644
+--- a/gym_hil/__init__.py
++++ b/gym_hil/__init__.py
+@@ -125,3 +125,76 @@ register(
+         "use_inputs_control": True,
+     },
+ )
++
++
++# ---------------------------------------------------------------------------
++# PandaPlaceCube: 블록 하나를 집어서 바닥의 목표 패드 위에 내려놓는 태스크.
++# 이 값은 gymnasium 의 TimeLimit 상한이다. 실제 에피소드 길이는 lerobot 의
++# TimeLimitProcessorStep(control_time_s * fps) 이 정하므로, 여기서는 그보다 넉넉히
++# 잡아 두기만 한다. 2000 = 100초 @20fps. (600 으로 두었더니 control_time_s 를 40초로
++# 올려도 30초에서 잘렸다.)
++# ---------------------------------------------------------------------------
++
++register(
++    id="gym_hil/PandaPlaceCubeBase-v0",
++    entry_point="gym_hil.envs:PandaPlaceCubeGymEnv",
++    max_episode_steps=2000,
++)
++
++register(
++    id="gym_hil/PandaPlaceCubeViewer-v0",
++    entry_point=lambda **kwargs: PassiveViewerWrapper(gym.make("gym_hil/PandaPlaceCubeBase-v0", **kwargs)),
++    max_episode_steps=2000,
++)
++
++register(
++    id="gym_hil/PandaPlaceCube-v0",
++    entry_point="gym_hil.wrappers.factory:make_env",
++    max_episode_steps=2000,
++    kwargs={
++        "env_id": "gym_hil/PandaPlaceCubeBase-v0",
++        "use_inputs_control": False,
++        "gripper_penalty": -0.05,
++    },
++)
++
++# 조작용 기본 환경. MuJoCo 창을 띄우지 않는다.
++# VNC 의 GLX 가 소프트웨어라 창을 띄우면 스텝당 ~690 ms(1.5 fps)가 되기 때문이다.
++# 화면은 HIL_VIEW_STREAM 으로 내보내 브라우저에서 본다. MUJOCO_GL=egl 로 실행할 것.
++register(
++    id="gym_hil/PandaPlaceCubeKeyboard-v0",
++    entry_point="gym_hil.wrappers.factory:make_env",
++    max_episode_steps=2000,
++    kwargs={
++        "env_id": "gym_hil/PandaPlaceCubeBase-v0",
++        "use_viewer": False,
++        "gripper_penalty": -0.05,
++        "use_inputs_control": True,
++    },
++)
++
++# GPU GLX 가 있는 환경(로컬 데스크톱 등)에서 MuJoCo 창을 직접 띄우고 싶을 때 쓴다.
++register(
++    id="gym_hil/PandaPlaceCubeKeyboardWindow-v0",
++    entry_point="gym_hil.wrappers.factory:make_env",
++    max_episode_steps=2000,
++    kwargs={
++        "env_id": "gym_hil/PandaPlaceCubeBase-v0",
++        "use_viewer": True,
++        "gripper_penalty": -0.05,
++        "use_inputs_control": True,
++    },
++)
++
++register(
++    id="gym_hil/PandaPlaceCubeGamepad-v0",
++    entry_point="gym_hil.wrappers.factory:make_env",
++    max_episode_steps=2000,
++    kwargs={
++        "env_id": "gym_hil/PandaPlaceCubeBase-v0",
++        "use_viewer": True,
++        "gripper_penalty": -0.05,
++        "use_inputs_control": True,
++        "use_gamepad": True,
++    },
++)
+diff --git a/gym_hil/assets/place_cube_scene.xml b/gym_hil/assets/place_cube_scene.xml
+new file mode 100644
+index 0000000..b13c86a
+--- /dev/null
++++ b/gym_hil/assets/place_cube_scene.xml
+@@ -0,0 +1,50 @@
++<mujoco model="PlaceCubeScene">
++    <include file="panda.xml"/>
++
++    <option timestep=".002" noslip_iterations="5" noslip_tolerance="0"/>
++
++    <statistic center="0.3 0 0.4" extent=".8"/>
++
++    <visual>
++      <headlight diffuse=".4 .4 .4" ambient=".5 .5 .5"/>
++      <global azimuth="160" elevation="-20" offheight="128" offwidth="128"/>
++      <quality offsamples="8"/>
++    </visual>
++
++    <asset>
++      <texture type="skybox" builtin="gradient" rgb1=".3 .5 .7" rgb2="0 0 0" width="32" height="512"/>
++      <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1=".1 .2 .3" rgb2=".2 .3 .4"/>
++      <material name="grid" texture="grid" texrepeat="2 2" texuniform="true" reflectance="0"/>
++    </asset>
++
++    <worldbody>
++      <camera name="front" pos="1.3 0.0 0.7" quat="0.5963678 0.3799282 0.3799282 0.5963678" fovy="45"/>
++      <light pos="0 0 3" dir="0 0 -1" diffuse="1 1 1" specular=".3 .3 .3"/>
++      <light pos="0 -.5 .4" mode="targetbodycom" target="block" diffuse=".8 .8 .8" specular=".3 .3 .3"/>
++      <geom name="floor" size="3 3 0.01" type="plane" material="grid"/>
++
++      <!-- 옮길 블록. reset() 에서 위치를 매번 새로 뽑는다. -->
++      <body name="block" pos="0.35 0 .02">
++        <freejoint name="block"/>
++        <geom name="block" type="box" size=".02 .02 .02" mass="0.1" rgba=".85 .15 .15 1"/>
++      </body>
++
++      <!-- 놓을 자리. 눈에 보이지만 충돌은 하지 않는(contype/conaffinity=0) 납작한 패드.
++           바깥쪽 진한 테두리 + 안쪽 반투명 원판 두 장으로 그려 카메라에서 잘 보이게 한다. -->
++      <body name="goal" pos="0.5 0 0">
++        <geom name="goal_ring" type="cylinder" size=".040 .0015" contype="0" conaffinity="0" rgba=".05 .45 .15 .95"/>
++        <geom name="goal" type="cylinder" size=".030 .0030" contype="0" conaffinity="0" rgba=".20 .90 .35 .60"/>
++      </body>
++
++      <!-- opspace IK 용 mocap 타겟. rgba 알파 0 이라 화면에 보이지 않는다. 건드리지 말 것. -->
++      <body name="target" pos=".15 0 .5" quat="0 1 0 0" mocap="true">
++        <geom name="target" type="box" size=".03 .03 .03" contype="0" conaffinity="0" rgba=".6 .3 .3 0"/>
++      </body>
++    </worldbody>
++
++    <sensor>
++      <framepos name="block_pos" objtype="geom" objname="block"/>
++      <framequat name="block_quat" objtype="geom" objname="block"/>
++      <framepos name="goal_pos" objtype="geom" objname="goal"/>
++    </sensor>
++  </mujoco>
+diff --git a/gym_hil/envs/__init__.py b/gym_hil/envs/__init__.py
+index 07c1154..47dcf29 100644
+--- a/gym_hil/envs/__init__.py
++++ b/gym_hil/envs/__init__.py
+@@ -16,5 +16,6 @@
+ 
+ from gym_hil.envs.panda_arrange_boxes_gym_env import PandaArrangeBoxesGymEnv
+ from gym_hil.envs.panda_pick_gym_env import PandaPickCubeGymEnv
++from gym_hil.envs.panda_place_gym_env import PandaPlaceCubeGymEnv
+ 
+-__all__ = ["PandaPickCubeGymEnv", "PandaArrangeBoxesGymEnv"]
++__all__ = ["PandaPickCubeGymEnv", "PandaArrangeBoxesGymEnv", "PandaPlaceCubeGymEnv"]
+diff --git a/gym_hil/envs/panda_place_gym_env.py b/gym_hil/envs/panda_place_gym_env.py
+new file mode 100644
+index 0000000..1f344ae
+--- /dev/null
++++ b/gym_hil/envs/panda_place_gym_env.py
+@@ -0,0 +1,291 @@
++#!/usr/bin/env python
++
++# Copyright 2024 The HuggingFace Inc. team. All rights reserved.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++"""블록 하나를 집어서 바닥의 목표 패드 위에 내려놓는 태스크.
++
++PandaPickCube 와 다른 점
++  - 매 reset 마다 블록 위치를 연속 랜덤으로 뽑는다 (목표 패드에서 최소 거리 확보).
++  - 바닥에 눈에 보이는 목표 패드가 있다 (충돌하지 않는 시각 전용 지오메트리).
++  - 성공 판정이 "들어올렸다" 가 아니라 "목표 위에 내려놓고 손을 뗐다" 이다.
++
++관측/행동 공간과 카메라 이름은 PandaPickCube 와 완전히 동일하므로
++학습 설정(configs/*.json)의 input_features / output_features 를 그대로 쓸 수 있다.
++"""
++
++from pathlib import Path
++from typing import Any, Dict, Literal, Tuple
++
++import mujoco
++import numpy as np
++from gymnasium import spaces
++
++from gym_hil.mujoco_gym_env import MAX_GRIPPER_COMMAND, FrankaGymEnv, GymRenderingSpec
++
++_PANDA_HOME = np.asarray((0, 0.195, 0, -2.43, 0, 2.62, 0.785))
++_CARTESIAN_BOUNDS = np.asarray([[0.2, -0.3, 0], [0.6, 0.3, 0.5]])
++# 블록을 뿌리는 범위 (x, y). PandaPickCube 와 같은 값.
++_SAMPLING_BOUNDS = np.asarray([[0.3, -0.15], [0.5, 0.15]])
++# 2단계에서 목표 패드도 랜덤으로 돌릴 때 쓰는 범위.
++_GOAL_SAMPLING_BOUNDS = np.asarray([[0.38, -0.15], [0.55, 0.15]])
++
++
++class PandaPlaceCubeGymEnv(FrankaGymEnv):
++    """Panda 로봇이 블록을 집어 목표 패드 위에 내려놓는 환경."""
++
++    def __init__(
++        self,
++        seed: int = 0,
++        control_dt: float = 0.1,
++        physics_dt: float = 0.002,
++        render_spec: GymRenderingSpec = GymRenderingSpec(),  # noqa: B008
++        render_mode: Literal["rgb_array", "human"] = "rgb_array",
++        image_obs: bool = False,
++        reward_type: str = "sparse",
++        random_block_position: bool = True,
++        random_goal_position: bool = False,
++        success_radius: float = 0.03,
++        min_block_goal_dist: float = 0.08,
++        lift_threshold: float = 0.03,
++        require_lift: bool = True,
++    ):
++        self.reward_type = reward_type
++
++        super().__init__(
++            xml_path=Path(__file__).parent.parent / "assets" / "place_cube_scene.xml",
++            seed=seed,
++            control_dt=control_dt,
++            physics_dt=physics_dt,
++            render_spec=render_spec,
++            render_mode=render_mode,
++            image_obs=image_obs,
++            home_position=_PANDA_HOME,
++            cartesian_bounds=_CARTESIAN_BOUNDS,
++        )
++
++        # Task-specific setup
++        self._block_z = self._model.geom("block").size[2]
++        self._random_block_position = random_block_position
++        self._random_goal_position = random_goal_position
++        self._success_radius = success_radius
++        self._min_block_goal_dist = min_block_goal_dist
++        self._lift_threshold = lift_threshold
++        self._require_lift = require_lift
++
++        self._goal_body_id = self._model.body("goal").id
++        self._goal_pos = self._model.body_pos[self._goal_body_id].copy()
++        self._z_init = self._block_z
++        self._lifted = False
++
++        agent_dim = self.get_robot_state().shape[0]
++        agent_box = spaces.Box(-np.inf, np.inf, (agent_dim,), dtype=np.float32)
++        # 상태 전용 모드에서는 블록 위치(3) + 목표 위치(3) 을 같이 준다.
++        env_box = spaces.Box(-np.inf, np.inf, (6,), dtype=np.float32)
++
++        if self.image_obs:
++            self.observation_space = spaces.Dict(
++                {
++                    "pixels": spaces.Dict(
++                        {
++                            "front": spaces.Box(
++                                0,
++                                255,
++                                (self._render_specs.height, self._render_specs.width, 3),
++                                dtype=np.uint8,
++                            ),
++                            "wrist": spaces.Box(
++                                0,
++                                255,
++                                (self._render_specs.height, self._render_specs.width, 3),
++                                dtype=np.uint8,
++                            ),
++                        }
++                    ),
++                    "agent_pos": agent_box,
++                }
++            )
++        else:
++            self.observation_space = spaces.Dict(
++                {
++                    "agent_pos": agent_box,
++                    "environment_state": env_box,
++                }
++            )
++
++    # ------------------------------------------------------------------ reset
++
++    def reset(self, seed=None, **kwargs) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
++        """환경을 초기화한다."""
++        super().reset(seed=seed)
++
++        mujoco.mj_resetData(self._model, self._data)
++        self.reset_robot()
++
++        # 목표 패드 위치 결정. 정적 body 라 model.body_pos 를 직접 고친다.
++        if self._random_goal_position:
++            goal_xy = self.np_random.uniform(*_GOAL_SAMPLING_BOUNDS)
++            self._model.body_pos[self._goal_body_id][:2] = goal_xy
++        self._goal_pos = self._model.body_pos[self._goal_body_id].copy()
++
++        # 블록 위치 결정. 목표 패드와 너무 가까우면 다시 뽑는다.
++        if self._random_block_position:
++            block_xy = self._sample_block_xy()
++        else:
++            block_xy = np.asarray([0.3, 0.0])
++        self._data.jnt("block").qpos[:3] = (*block_xy, self._block_z)
++        self._data.jnt("block").qpos[3:] = (1.0, 0.0, 0.0, 0.0)
++        mujoco.mj_forward(self._model, self._data)
++
++        self._z_init = self._data.sensor("block_pos").data[2]
++        self._lifted = False
++
++        obs = self._compute_observation()
++        return obs, {}
++
++    def _sample_block_xy(self) -> np.ndarray:
++        goal_xy = self._goal_pos[:2]
++        block_xy = self.np_random.uniform(*_SAMPLING_BOUNDS)
++        for _ in range(200):
++            if np.linalg.norm(block_xy - goal_xy) >= self._min_block_goal_dist:
++                return block_xy
++            block_xy = self.np_random.uniform(*_SAMPLING_BOUNDS)
++        # 200 번 안에 못 뽑으면 목표 반대쪽으로 밀어서 최소 거리를 강제로 맞춘다.
++        direction = block_xy - goal_xy
++        norm = np.linalg.norm(direction)
++        direction = np.asarray([1.0, 0.0]) if norm < 1e-6 else direction / norm
++        block_xy = goal_xy + direction * self._min_block_goal_dist
++        return np.clip(block_xy, _SAMPLING_BOUNDS[0], _SAMPLING_BOUNDS[1])
++
++    # ------------------------------------------------------------------- step
++
++    def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
++        """환경을 한 스텝 진행한다."""
++        self.apply_action(action)
++
++        # 한 번이라도 들어올렸는지 래치로 기록한다 (밀어서 옮기는 편법 방지).
++        block_pos = self._data.sensor("block_pos").data
++        if block_pos[2] - self._z_init > self._lift_threshold:
++            self._lifted = True
++
++        obs = self._compute_observation()
++        success = self._is_success()
++
++        if self.reward_type == "dense":
++            rew = self._dense_reward(success)
++        else:
++            rew = float(success)
++
++        exceeded_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - 0.10)) or np.any(
++            block_pos[:2] > (_SAMPLING_BOUNDS[1] + 0.10)
++        )
++
++        terminated = bool(success or exceeded_bounds)
++
++        return obs, rew, terminated, False, {"succeed": success}
++
++    # ------------------------------------------------------------ observation
++
++    def _compute_observation(self) -> dict:
++        """현재 관측을 만든다."""
++        robot_state = self.get_robot_state().astype(np.float32)
++
++        if self.image_obs:
++            front_view, wrist_view = self.render()
++            return {
++                "pixels": {"front": front_view, "wrist": wrist_view},
++                "agent_pos": robot_state,
++            }
++
++        block_pos = self._data.sensor("block_pos").data.astype(np.float32)
++        goal_pos = self._goal_pos.astype(np.float32)
++        return {
++            "agent_pos": robot_state,
++            "environment_state": np.concatenate([block_pos, goal_pos]).astype(np.float32),
++        }
++
++    # ----------------------------------------------------------- reward/success
++
++    def is_gripper_open(self) -> bool:
++        """그리퍼가 열려 있는지. ctrl 0 = 완전히 열림, 255 = 완전히 닫힘."""
++        return bool(self._data.ctrl[self._gripper_ctrl_id] < 0.2 * MAX_GRIPPER_COMMAND)
++
++    def block_goal_distance(self) -> float:
++        """블록과 목표 패드 사이의 수평(xy) 거리."""
++        block_pos = self._data.sensor("block_pos").data
++        return float(np.linalg.norm(block_pos[:2] - self._goal_pos[:2]))
++
++    def is_block_resting(self) -> bool:
++        """블록이 공중에 떠 있지 않고 바닥에 놓여 있는지."""
++        block_pos = self._data.sensor("block_pos").data
++        return bool(block_pos[2] < self._z_init + 0.01)
++
++    def _is_success(self) -> bool:
++        """성공 판정: 목표 안에 + 바닥에 놓임 + 그리퍼 열림 (+ 한 번은 들어올렸음)."""
++        if self.block_goal_distance() >= self._success_radius:
++            return False
++        if not self.is_block_resting():
++            return False
++        if not self.is_gripper_open():
++            return False
++        if self._require_lift and not self._lifted:
++            return False
++        return True
++
++    def _dense_reward(self, success: bool) -> float:
++        """0 ~ 1 사이의 조밀 보상. 잡기 전/후로 단계를 나눈다."""
++        if success:
++            return 1.0
++
++        block_pos = self._data.sensor("block_pos").data
++        tcp_pos = self._data.sensor("2f85/pinch_pos").data
++
++        if not self._lifted:
++            # 1단계: 블록에 다가가서 들어올리기
++            r_reach = float(np.exp(-20.0 * np.linalg.norm(block_pos - tcp_pos)))
++            r_lift = float(np.clip((block_pos[2] - self._z_init) / self._lift_threshold, 0.0, 1.0))
++            return 0.3 * r_reach + 0.2 * r_lift
++
++        # 2단계: 목표 위로 옮겨서 내려놓기
++        r_place = float(np.exp(-10.0 * self.block_goal_distance()))
++        r_release = 0.1 if (self.is_block_resting() and self.is_gripper_open()) else 0.0
++        return 0.5 + 0.4 * r_place + r_release
++
++    # ------------------------------------------------------------ diagnostics
++
++    def get_task_diagnostics(self) -> Dict[str, Any]:
++        """검증·디버깅용. info 를 오염시키지 않으려고 따로 뺀다."""
++        block_pos = self._data.sensor("block_pos").data
++        return {
++            "block_pos": np.round(block_pos, 4).tolist(),
++            "goal_pos": np.round(self._goal_pos, 4).tolist(),
++            "dist_xy": round(self.block_goal_distance(), 4),
++            "in_target": self.block_goal_distance() < self._success_radius,
++            "resting": self.is_block_resting(),
++            "gripper_open": self.is_gripper_open(),
++            "gripper_ctrl": round(float(self._data.ctrl[self._gripper_ctrl_id]), 1),
++            "lifted": self._lifted,
++            "success": self._is_success(),
++        }
++
++
++if __name__ == "__main__":
++    from gym_hil import PassiveViewerWrapper
++
++    env = PandaPlaceCubeGymEnv(render_mode="human")
++    env = PassiveViewerWrapper(env)
++    env.reset()
++    for _ in range(100):
++        env.step(np.random.uniform(-1, 1, 7))
++    env.close()
+diff --git a/gym_hil/wrappers/factory.py b/gym_hil/wrappers/factory.py
+index 05e10b4..79ecaa1 100644
+--- a/gym_hil/wrappers/factory.py
++++ b/gym_hil/wrappers/factory.py
+@@ -6,6 +6,7 @@ import gymnasium as gym
+ 
+ from gym_hil.envs.panda_arrange_boxes_gym_env import PandaArrangeBoxesGymEnv
+ from gym_hil.envs.panda_pick_gym_env import PandaPickCubeGymEnv
++from gym_hil.envs.panda_place_gym_env import PandaPlaceCubeGymEnv
+ from gym_hil.wrappers.hil_wrappers import (
+     DEFAULT_EE_STEP_SIZE,
+     EEActionWrapper,
+@@ -13,6 +14,7 @@ from gym_hil.wrappers.hil_wrappers import (
+     InputsControlWrapper,
+     ResetDelayWrapper,
+ )
++from gym_hil.wrappers.view_stream_wrapper import maybe_wrap_view_stream
+ from gym_hil.wrappers.viewer_wrapper import PassiveViewerWrapper
+ 
+ 
+@@ -74,6 +76,11 @@ def wrap_env(
+             controller_config_path=controller_config_path,
+         )
+ 
++    # 조작자용 화면 스트림. HIL_VIEW_STREAM 이 있을 때만 붙는다.
++    # VNC 위의 GLX 는 소프트웨어(llvmpipe)라 패시브 뷰어 창이 스텝당 ~690 ms 를 먹는다.
++    # EGL 오프스크린으로 한 장 더 그려 파일로 내보내는 편이 40배 이상 빠르다.
++    env = maybe_wrap_view_stream(env)
++
+     # Apply wrappers in the correct order
+     if use_viewer:
+         env = PassiveViewerWrapper(env, show_left_ui=show_ui, show_right_ui=show_ui)
+@@ -122,6 +129,8 @@ def make_env(
+         env = PandaPickCubeGymEnv(**kwargs)
+     elif env_id == "gym_hil/PandaArrangeBoxesBase-v0":
+         env = PandaArrangeBoxesGymEnv(**kwargs)
++    elif env_id == "gym_hil/PandaPlaceCubeBase-v0":
++        env = PandaPlaceCubeGymEnv(**kwargs)
+     else:
+         raise ValueError(f"Environment ID {env_id} not supported")
+ 
+diff --git a/gym_hil/wrappers/view_stream_wrapper.py b/gym_hil/wrappers/view_stream_wrapper.py
+new file mode 100644
+index 0000000..58f7640
+--- /dev/null
++++ b/gym_hil/wrappers/view_stream_wrapper.py
+@@ -0,0 +1,474 @@
++#!/usr/bin/env python
++"""조작자용 화면을 파일로 흘려보내는 래퍼 (+ 화면 위 정보 표시, 일시정지).
++
++MuJoCo 의 패시브 뷰어 창(GLFW)은 X 서버의 GLX 를 쓴다. VNC(Xtigervnc) 위에서는
++GLX 가 llvmpipe(소프트웨어)로 잡혀서 스텝당 ~859 ms 가 걸린다. EGL 오프스크린은
++GPU 를 쓰므로 같은 장면이 ~23 ms 다. 그래서 EGL 로 한 장 더 렌더해 JPEG 로 저장하고,
++대시보드(scripts/progress_dashboard.py)가 그 파일을 MJPEG 로 브라우저에 흘려준다.
++
++화면 위에 얹는 것:
++  - 왼쪽 위: 스텝 · 에피소드 · 성공률 · 경과 시간
++  - 개입 중에는 **빨간 테두리 + "● 개입 중 (REC)"** 배지. 지금 누가 조종 중인지 한눈에 보인다.
++  - 일시정지 중에는 노란 테두리 + "⏸ 일시정지"
++
++환경변수:
++  HIL_VIEW_STREAM   저장 경로 (예: /dev/shm/hil_view.jpg). 없으면 이 래퍼는 붙지 않는다.
++  HIL_VIEW_SIZE     한 칸의 픽셀 크기 (기본 512)
++  HIL_VIEW_CAMERAS  쉼표로 구분한 카메라 이름 (기본 "front")
++  HIL_VIEW_EVERY    몇 스텝마다 저장할지 (기본 1)
++  HIL_VIEW_HUD      0 이면 글자/테두리를 얹지 않는다 (기본 1)
++  HIL_PAUSE_FILE    이 파일이 있으면 시뮬레이터가 멈춘다 (기본 /dev/shm/hil_pause)
++"""
++
++import logging
++import os
++import tempfile
++import time
++
++import gymnasium as gym
++import mujoco
++import numpy as np
++
++_FONT_CANDIDATES = (
++    "/usr/share/fonts/truetype/nanum/NanumGothicCodingBold.ttf",
++    "/usr/share/fonts/truetype/nanum/NanumGothicCoding.ttf",
++    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
++    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
++)
++
++
++def _load_font(size):
++    from PIL import ImageFont
++
++    for path in _FONT_CANDIDATES:
++        if os.path.exists(path):
++            try:
++                return ImageFont.truetype(path, size)
++            except OSError:
++                continue
++    try:
++        return ImageFont.load_default()
++    except Exception:  # noqa: BLE001
++        return None
++
++
++def _load_history(run_dir):
++    """이 런이 지금까지 남긴 기록을 읽어 (에피소드수, 성공수, 최근20판, 누적스텝) 을 돌려준다.
++
++    actor 프로세스는 재시작할 때마다 자기 카운터를 0 부터 세므로, 화면에 "1번째 에피소드"
++    가 다시 떠서 이어서 하는 건지 새로 하는 건지 알 수 없었다. learner 가 남기는
++    learner_metrics.jsonl 이 런 전체의 원본 기록이므로 그것을 읽어 이어받는다.
++    """
++    import json as _json
++
++    path = os.path.join(run_dir, "logs", "learner_metrics.jsonl")
++    ep = succ = steps = 0
++    recent = []
++    prev = base = 0
++    try:
++        with open(path, errors="replace") as f:
++            for line in f:
++                line = line.strip()
++                if not line:
++                    continue
++                try:
++                    r = _json.loads(line)
++                except ValueError:
++                    continue
++                if r.get("kind") != "interaction":
++                    continue
++                rew = r.get("Episodic reward")
++                if not isinstance(rew, (int, float)):
++                    continue
++                ok = 1 if float(rew) > 0.5 else 0
++                ep += 1
++                succ += ok
++                recent.append(ok)
++                if len(recent) > 20:
++                    recent.pop(0)
++                v = r.get("Interaction step")
++                if isinstance(v, (int, float)):
++                    v = int(v)
++                    if v < prev:
++                        base += prev
++                    prev = v
++                    steps = base + v
++    except OSError:
++        return 0, 0, [], 0
++    return ep, succ, recent, steps
++
++
++def _elapsed_path(run_dir):
++    return os.path.join(run_dir, "elapsed.json")
++
++
++def _elapsed_from_log(run_dir, max_gap=600.0):
++    """learner 가 남긴 기록에서 실제로 돌아간 시간을 추정한다.
++
++    에피소드 기록마다 시각이 들어 있으므로, 연속한 기록 사이 간격 중 max_gap 보다
++    짧은 것만 더하면 "실제로 돌던 시간" 이 된다(긴 간격 = 멈춰 있던 구간).
++
++    elapsed.json 보다 이쪽이 믿을 만한 경우가 있다 — actor 를 다른 실험 이름으로 띄우면
++    그 동안 elapsed.json 이 멈춰 있기 때문이다. 그래서 시작할 때 둘 중 큰 값을 쓴다.
++    """
++    import json as _json
++
++    path = os.path.join(run_dir, "logs", "learner_metrics.jsonl")
++    prev = None
++    total = 0.0
++    try:
++        with open(path, errors="replace") as f:
++            for line in f:
++                if '"interaction"' not in line:
++                    continue
++                try:
++                    r = _json.loads(line)
++                except ValueError:
++                    continue
++                if r.get("kind") != "interaction":
++                    continue
++                t = r.get("time")
++                if not isinstance(t, (int, float)):
++                    continue
++                if prev is not None:
++                    gap = t - prev
++                    if 0 < gap < max_gap:
++                        total += gap
++                prev = t
++    except OSError:
++        return 0.0
++    return total
++
++
++def _load_elapsed(run_dir):
++    """이 런이 지금까지 실제로 돌았던 초. 없으면 0."""
++    import json as _json
++
++    try:
++        with open(_elapsed_path(run_dir)) as f:
++            v = _json.load(f).get("seconds", 0)
++        return float(v) if isinstance(v, (int, float)) else 0.0
++    except (OSError, ValueError):
++        return 0.0
++
++
++def _save_elapsed(run_dir, seconds):
++    """원자적으로 갱신한다. 로그에서 공백을 추정하는 것보다 정확하다.
++
++    이미 적힌 값이 더 크면 그대로 둔다 — 시작할 때 읽은 뒤 누가 더 큰 값으로 채워 넣었거나
++    (기록에서 역산해 보정하는 경우) 다른 프로세스가 앞서 있을 수 있기 때문이다.
++    경과 시간은 줄어들 수 없는 값이므로 max 가 항상 옳다.
++    """
++    import json as _json
++
++    seconds = max(seconds, _load_elapsed(run_dir))
++    try:
++        d = os.path.dirname(_elapsed_path(run_dir)) or "."
++        os.makedirs(d, exist_ok=True)
++        fd, tmp = tempfile.mkstemp(dir=d, suffix=".json")
++        with os.fdopen(fd, "w") as f:
++            _json.dump({"seconds": round(seconds, 1)}, f)
++        os.replace(tmp, _elapsed_path(run_dir))
++    except OSError:
++        pass
++
++
++class ViewStreamWrapper(gym.Wrapper):
++    """매 스텝 조작자용 화면을 렌더해 JPEG 파일로 원자적으로 교체 저장한다."""
++
++    def __init__(self, env, path, size=512, cameras=("front",), every=1, quality=70,
++                 hud=True, pause_file="/dev/shm/hil_pause"):
++        super().__init__(env)
++        self.path = path
++        self.every = max(1, int(every))
++        self.quality = int(quality)
++        self.hud = bool(hud)
++        self.pause_file = pause_file
++        self._n = 0
++        self._renderer = None
++        self._cameras = list(cameras)
++        self._size = int(size)
++
++        # HUD 상태
++        self._t0 = time.time()
++        self._paused_for = 0.0
++        self._steps = 0            # 누적 스텝 = actor 의 상호작용 스텝
++        self._ep = 0               # 지금까지 끝난 에피소드 수
++        self._ep_step = 0
++        self._succ = 0
++        self._last_reward = 0.0
++        self._recent = []          # 최근 에피소드 성공 여부
++        self._intervening = False
++        self._interv_steps = 0
++        self._paused = False
++        self._font = None
++        self._font_small = None
++        self._carried = 0          # 이어받은 에피소드 수 (화면에 표시용)
++
++        # HIL_RUN_DIR 이 주어지면 그 런의 기록을 이어받는다. 없으면 0 부터 센다
++        # (연습·녹화처럼 런에 속하지 않는 실행).
++        run_dir = os.environ.get("HIL_RUN_DIR")
++        self._run_dir = run_dir
++        self._elapsed_base = 0.0
++        self._elapsed_saved_at = 0.0
++        if run_dir:
++            _file = _load_elapsed(run_dir)
++            _log = _elapsed_from_log(run_dir)
++            self._elapsed_base = max(_file, _log)
++            if self._elapsed_base:
++                src = "기록" if _log > _file else "파일"
++                logging.info(
++                    f"[view-stream] 경과 시간을 이어받는다: {self._elapsed_base/3600:.2f} 시간 "
++                    f"(파일 {_file/3600:.2f}h · 기록 {_log/3600:.2f}h -> {src} 기준)"
++                )
++                if _log > _file:
++                    _save_elapsed(run_dir, self._elapsed_base)
++            ep, succ, recent, steps = _load_history(run_dir)
++            if ep:
++                self._ep, self._succ, self._recent, self._steps = ep, succ, recent, steps
++                self._carried = ep
++                logging.info(
++                    f"[view-stream] 이 런의 기록을 이어받는다: {ep}판 · 성공 {succ} · 누적 {steps:,} 스텝"
++                )
++            else:
++                logging.info("[view-stream] 이 런은 기록이 없다. 0 부터 센다(새 실험).")
++
++        try:
++            from PIL import Image  # noqa: F401
++        except ImportError:
++            logging.warning("[view-stream] Pillow 가 없어 화면 스트림을 끈다.")
++            return
++
++        base = self.env.unwrapped
++        # MujocoGymEnv.__init__ 이 모델의 오프스크린 버퍼 한도를 render_spec(128x128)으로
++        # 덮어쓴다. 조작자용 화면은 그보다 크게 뽑아야 하므로 여기서 한도를 올린다.
++        try:
++            g = base.model.vis.global_
++            g.offwidth = max(int(g.offwidth), self._size)
++            g.offheight = max(int(g.offheight), self._size)
++        except Exception as exc:  # noqa: BLE001
++            logging.warning(f"[view-stream] 오프스크린 버퍼 한도를 올리지 못했다: {exc}")
++        try:
++            self._renderer = mujoco.Renderer(base.model, self._size, self._size)
++        except Exception as exc:  # noqa: BLE001
++            logging.warning(f"[view-stream] 렌더러를 만들지 못해 화면 스트림을 끈다: {exc}")
++            self._renderer = None
++            return
++
++        valid = []
++        for name in self._cameras:
++            if mujoco.mj_name2id(base.model, mujoco.mjtObj.mjOBJ_CAMERA, name) >= 0:
++                valid.append(name)
++            else:
++                logging.warning(f"[view-stream] 카메라 '{name}' 가 없어 건너뛴다.")
++        self._cameras = valid or ["front"]
++
++        if self.hud:
++            self._font = _load_font(19)
++            self._font_small = _load_font(15)
++            if self._font is None:
++                logging.warning("[view-stream] 글꼴을 찾지 못해 화면 표시를 끈다.")
++                self.hud = False
++
++        os.makedirs(os.path.dirname(os.path.abspath(self.path)) or ".", exist_ok=True)
++        logging.info(
++            f"[view-stream] {self.path} 로 {'+'.join(self._cameras)} "
++            f"({self._size}px, {self.every} 스텝마다) 내보낸다. "
++            f"화면표시={'켬' if self.hud else '끔'} 일시정지파일={self.pause_file}"
++        )
++
++    # ------------------------------------------------------------------ HUD
++
++    def _elapsed(self):
++        s = int(self._elapsed_base + (time.time() - self._t0))
++        h, m, sec = s // 3600, (s % 3600) // 60, s % 60
++        return f"{h}:{m:02d}:{sec:02d}" if h else f"{m}:{sec:02d}"
++
++    def _hud_lines(self):
++        n = len(self._recent)
++        recent = f"최근{n}판 {100 * sum(self._recent) // n}%" if n else "최근 - "
++        overall = f"{self._succ}/{self._ep}" if self._ep else "0/0"
++        rate = f" ({100 * self._succ // self._ep}%)" if self._ep else ""
++        iv = f" · 개입 {100 * self._interv_steps // max(self._steps, 1)}%"
++        tag = f" (이어서, {self._carried}판부터)" if self._carried else " (새 실험)"
++        return [
++            f"전체 {self._steps:,} 스텝 · {self._ep + 1}번째 에피소드 {self._ep_step} 스텝째{tag}",
++            f"성공 {overall}{rate} · {recent}{iv} · 경과 {self._elapsed()}",
++        ]
++
++    def _draw_hud(self, img):
++        from PIL import Image, ImageDraw
++
++        pil = Image.fromarray(img).convert("RGB")
++        d = ImageDraw.Draw(pil, "RGBA")
++        w, h = pil.size
++
++        lines = self._hud_lines()
++        box_h = 8 + 23 * len(lines)
++        d.rectangle([0, 0, w, box_h], fill=(0, 0, 0, 165))
++        for i, t in enumerate(lines):
++            d.text((10, 4 + 23 * i), t, font=self._font, fill=(255, 255, 255, 240))
++
++        # 상태 배지 + 테두리
++        if self._paused:
++            color, label = (250, 200, 40), "|| 일시정지"
++        elif self._intervening:
++            color, label = (235, 55, 55), "● 개입 중 (REC)"
++        else:
++            color, label = None, None
++
++        if color is not None:
++            bw = 7
++            for k in range(bw):
++                d.rectangle([k, k, w - 1 - k, h - 1 - k], outline=color)
++            tw = int(d.textlength(label, font=self._font))
++            pad = 9
++            x0, y0 = w - tw - 2 * pad - 12, box_h + 12
++            d.rectangle([x0, y0, x0 + tw + 2 * pad, y0 + 30], fill=color + (235,))
++            d.text((x0 + pad, y0 + 5), label, font=self._font, fill=(255, 255, 255, 255))
++
++        return np.asarray(pil)
++
++    # ------------------------------------------------------------------ 내부
++
++    def _write(self):
++        if self._renderer is None:
++            return
++        base = self.env.unwrapped
++        frames = []
++        for name in self._cameras:
++            try:
++                self._renderer.update_scene(base.data, camera=name)
++                frames.append(self._renderer.render())
++            except Exception:  # noqa: BLE001, S112
++                return
++        if not frames:
++            return
++        img = frames[0] if len(frames) == 1 else np.concatenate(frames, axis=1)
++        if self.hud:
++            try:
++                img = self._draw_hud(img)
++            except Exception:  # noqa: BLE001
++                pass
++
++        from PIL import Image
++
++        d = os.path.dirname(os.path.abspath(self.path)) or "."
++        fd, tmp = tempfile.mkstemp(dir=d, suffix=".jpg")
++        try:
++            with os.fdopen(fd, "wb") as f:
++                Image.fromarray(img).save(f, "JPEG", quality=self.quality)
++            # 읽는 쪽이 반쯤 쓰인 파일을 보지 않도록 원자적으로 교체한다.
++            os.replace(tmp, self.path)
++        except Exception:  # noqa: BLE001
++            if os.path.exists(tmp):
++                os.unlink(tmp)
++
++    def _maybe_pause(self):
++        """일시정지 파일이 있는 동안 여기서 멈춘다. 학습·연결은 그대로 살아 있다."""
++        if not self.pause_file:
++            return
++        try:
++            if not os.path.exists(self.pause_file):
++                if self._paused:
++                    self._paused = False
++                    logging.info("[view-stream] 재개한다.")
++                    self._write()
++                return
++        except OSError:
++            return
++        if not self._paused:
++            self._paused = True
++            logging.info(f"[view-stream] 일시정지 ({self.pause_file} 가 사라지면 재개).")
++            self._write()
++        t_pause = time.time()
++        while True:
++            try:
++                if not os.path.exists(self.pause_file):
++                    break
++            except OSError:
++                break
++            time.sleep(0.2)
++        self._paused = False
++        # 멈춰 있던 시간은 경과 시간에서 뺀다.
++        self._t0 += time.time() - t_pause
++        logging.info("[view-stream] 재개한다.")
++        self._write()
++
++    # ------------------------------------------------------------------ gym
++
++    def reset(self, **kwargs):
++        # 에피소드는 여기서 센다. 시간 초과(truncated)는 gym 환경이 아니라 그 바깥의
++        # lerobot 파이프라인(TimeLimitProcessorStep)이 판정하기 때문에, step() 의 반환값만
++        # 보고 있으면 시간 초과로 끝난 에피소드를 영영 못 센다(에피소드 번호가 1 에 멈춘다).
++        # 리셋이 곧 에피소드 종료이므로 그 순간에 센다.
++        if self._ep_step > 0:
++            ok = self._last_reward > 0.5
++            self._ep += 1
++            self._succ += int(ok)
++            self._recent.append(int(ok))
++            if len(self._recent) > 20:
++                self._recent.pop(0)
++        out = self.env.reset(**kwargs)
++        self._n = 0
++        self._ep_step = 0
++        self._last_reward = 0.0
++        self._intervening = False
++        self._write()
++        return out
++
++    def step(self, action):
++        self._maybe_pause()
++        out = self.env.step(action)
++        info = out[4] if len(out) >= 5 else {}
++        reward = float(out[1]) if len(out) >= 2 else 0.0
++        _ = out[2] if len(out) >= 3 else False  # terminated: reset() 에서 세므로 여기선 안 쓴다
++
++
++        self._steps += 1
++        self._ep_step += 1
++        self._n += 1
++        if isinstance(info, dict):
++            self._intervening = bool(info.get("is_intervention", False))
++            if self._intervening:
++                self._interv_steps += 1
++
++        # 성공 여부는 마지막 프레임의 보상으로 판정한다. 실제 집계는 reset() 에서 한다.
++        if reward > self._last_reward:
++            self._last_reward = reward
++
++        if self._n % self.every == 0:
++            self._write()
++
++        # 누적 경과 시간을 10초마다 파일에 남긴다. 다음 실행이 여기서 이어받는다.
++        if self._run_dir:
++            now = time.time()
++            if now - self._elapsed_saved_at > 10.0:
++                self._elapsed_saved_at = now
++                _save_elapsed(self._run_dir, self._elapsed_base + (now - self._t0))
++        return out
++
++    def close(self):
++        if getattr(self, "_run_dir", None):
++            _save_elapsed(self._run_dir, self._elapsed_base + (time.time() - self._t0))
++        if self._renderer is not None:
++            try:
++                self._renderer.close()
++            except Exception:  # noqa: BLE001, S110
++                pass
++            self._renderer = None
++        return self.env.close()
++
++
++def maybe_wrap_view_stream(env):
++    """HIL_VIEW_STREAM 이 설정돼 있으면 래퍼를 씌운다. 아니면 그대로 돌려준다."""
++    path = os.environ.get("HIL_VIEW_STREAM")
++    if not path:
++        return env
++    size = int(os.environ.get("HIL_VIEW_SIZE", "512"))
++    cameras = [c.strip() for c in os.environ.get("HIL_VIEW_CAMERAS", "front").split(",") if c.strip()]
++    every = int(os.environ.get("HIL_VIEW_EVERY", "1"))
++    hud = os.environ.get("HIL_VIEW_HUD", "1") not in ("0", "false", "off", "")
++    pause_file = os.environ.get("HIL_PAUSE_FILE", "/dev/shm/hil_pause")
++    return ViewStreamWrapper(env, path=path, size=size, cameras=cameras, every=every,
++                             hud=hud, pause_file=pause_file)

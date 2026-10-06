@@ -1,0 +1,20 @@
+{
+  "_설명": "키 배치. 값은 특수키 이름이거나 글자 한 개. 바꾸고 저장한 뒤 다시 실행하면 적용된다.",
+  "_특수키_이름": "up down left right space enter esc tab backspace shift_l shift_r ctrl_l ctrl_r alt_l alt_r",
+
+  "forward_x": "up",
+  "backward_x": "down",
+  "forward_y": "left",
+  "backward_y": "right",
+
+  "forward_z": "w",
+  "backward_z": "ctrl_l",
+
+  "gripper_close": "g",
+  "gripper_open": "shift_l",
+
+  "intervention": "space",
+  "success": "enter",
+  "failure": "esc",
+  "rerecord": "r"
+}

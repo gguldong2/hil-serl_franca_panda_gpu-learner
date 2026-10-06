@@ -1,0 +1,44 @@
+diff --git a/src/lerobot/rl/actor.py b/src/lerobot/rl/actor.py
+index df703cc..ea5a432 100644
+--- a/src/lerobot/rl/actor.py
++++ b/src/lerobot/rl/actor.py
+@@ -201,6 +201,11 @@ def actor_cli(cfg: TrainRLServerPipelineConfig):
+             interactions_queue=interactions_queue,
+         )
+         logging.info("[ACTOR] Policy loop finished")
++        # online_steps 를 다 돌고 정상 종료한 경우에도 shutdown_event 를 세워야 한다.
++        # 세우지 않으면 receive_policy 스레드가 learner 의 파라미터 스트림을 계속
++        # 기다려서 아래 finally 의 receive_policy_process.join() 에서 영원히 멈춘다.
++        # (Ctrl+C 로 끝낼 때는 시그널 핸들러가 세워 주므로 이 경로에서만 문제가 된다.)
++        shutdown_event.set()
+     except Exception:
+         logging.exception("[ACTOR] Unhandled exception in act_with_policy")
+         shutdown_event.set()
+@@ -210,12 +215,21 @@ def actor_cli(cfg: TrainRLServerPipelineConfig):
+         interactions_queue.close()
+         parameters_queue.close()
+ 
+-        transitions_process.join()
+-        logging.info("[ACTOR] Transitions process joined")
+-        interactions_process.join()
+-        logging.info("[ACTOR] Interactions process joined")
+-        receive_policy_process.join()
+-        logging.info("[ACTOR] Receive policy process joined")
++        # 세 스레드/프로세스는 모두 daemon 이라 인터프리터가 끝날 때 알아서 정리된다.
++        # 타임아웃 없이 join 하면 메인 스레드가 영영 빠져나오지 못한다. 실제로
++        # receive_policy 가 learner 의 파라미터 스트림에서 블록돼 actor 가 종료되지
++        # 않는 일이 생긴다(online_steps 를 다 채우고 정상 종료하는 경로에서 재현).
++        _JOIN_TIMEOUT_S = 10.0
++        for proc, name in (
++            (transitions_process, "Transitions"),
++            (interactions_process, "Interactions"),
++            (receive_policy_process, "Receive policy"),
++        ):
++            proc.join(timeout=_JOIN_TIMEOUT_S)
++            if proc.is_alive():
++                logging.warning(f"[ACTOR] {name} process did not stop in {_JOIN_TIMEOUT_S}s; leaving it to daemon shutdown")
++            else:
++                logging.info(f"[ACTOR] {name} process joined")
+ 
+         transitions_queue.cancel_join_thread()
+         interactions_queue.cancel_join_thread()

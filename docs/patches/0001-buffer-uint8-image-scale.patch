@@ -1,0 +1,25 @@
+diff --git a/src/lerobot/rl/buffer.py b/src/lerobot/rl/buffer.py
+index 0158681..bb3fed0 100644
+--- a/src/lerobot/rl/buffer.py
++++ b/src/lerobot/rl/buffer.py
+@@ -662,6 +662,11 @@ class ReplayBuffer:
+             current_state: dict[str, torch.Tensor] = {}
+             for key in state_keys:
+                 val = current_sample[key]
++                # HIL-SERL WSL 프로젝트 호환성 수정: make_dataset() 은 return_uint8=True 로 데이터셋을 만들어
++                # 영상 프레임을 uint8(0~255) 로 반환한다. 온라인 관측(VanillaObservationProcessorStep)은
++                # float32 0~1 이므로 같은 스케일로 맞춘다. (lerobot v0.6.1, upstream main 에도 미수정)
++                if val.dtype == torch.uint8:
++                    val = val.to(torch.float32) / 255.0
+                 current_state[key] = val.unsqueeze(0)  # Add batch dimension
+ 
+             # ----- 2) Action -----
+@@ -697,6 +702,8 @@ class ReplayBuffer:
+                     next_state_data: dict[str, torch.Tensor] = {}
+                     for key in state_keys:
+                         val = next_sample[key]
++                        if val.dtype == torch.uint8:  # 위와 동일한 호환성 수정
++                            val = val.to(torch.float32) / 255.0
+                         next_state_data[key] = val.unsqueeze(0)  # Add batch dimension
+                     next_state = next_state_data
+ 

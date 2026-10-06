@@ -1,0 +1,313 @@
+diff --git a/gym_hil/wrappers/intervention_utils.py b/gym_hil/wrappers/intervention_utils.py
+index e64a7d0..3c70d2b 100644
+--- a/gym_hil/wrappers/intervention_utils.py
++++ b/gym_hil/wrappers/intervention_utils.py
+@@ -15,6 +15,7 @@
+ # limitations under the License.
+ 
+ import json
++import logging
+ from pathlib import Path
+ 
+ 
+@@ -63,6 +64,24 @@ class InputController:
+         self.intervention_flag = False
+         self.open_gripper_command = False
+         self.close_gripper_command = False
++        # 두 그리퍼 키가 동시에 눌린 것으로 보일 때 "나중에 누른 쪽"을 알기 위한 순번.
++        # X 에서 keyup 이 유실되면 한쪽이 눌린 채로 남는데, 그때 조작이 죽지 않게 하려는 것.
++        self._grip_seq = 0
++        self._open_seq = 0
++        self._close_seq = 0
++
++    def _set_gripper(self, which: str, on: bool) -> None:
++        """그리퍼 명령을 세우거나 내린다. 세울 때 순번을 남긴다."""
++        if on:
++            self._grip_seq += 1
++        if which == "open":
++            self.open_gripper_command = on
++            if on:
++                self._open_seq = self._grip_seq
++        else:
++            self.close_gripper_command = on
++            if on:
++                self._close_seq = self._grip_seq
+ 
+     def start(self):
+         """Start the controller and initialize resources."""
+@@ -110,18 +129,61 @@ class InputController:
+ 
+     def gripper_command(self):
+         """Return the current gripper command."""
+-        if self.open_gripper_command == self.close_gripper_command:
+-            return "no-op"
++        if self.open_gripper_command and self.close_gripper_command:
++            # 둘 다 눌린 것으로 보인다. 상류는 여기서 "no-op" 을 돌려줬는데, X 에서
++            # keyup 하나가 유실되면 그 키가 영원히 눌린 상태로 남아 **그리퍼가 완전히
++            # 죽어 버린다**(실제로 시연 10개 중 3개가 이렇게 망가졌다).
++            # 나중에 누른 쪽을 따라 붙잡힌 키에서 빠져나올 수 있게 한다.
++            return "open" if self._open_seq > self._close_seq else "close"
+         elif self.open_gripper_command:
+             return "open"
+         elif self.close_gripper_command:
+             return "close"
++        return "no-op"
+ 
+ 
+ class KeyboardController(InputController):
+     """Generate motion deltas from keyboard input."""
+ 
+-    def __init__(self, x_step_size=0.01, y_step_size=0.01, z_step_size=0.01):
++    # 기본 키 배치. configs/keymap.json 또는 GYM_HIL_KEYMAP 환경변수로 덮어쓸 수 있다.
++    # 값은 pynput 의 특수키 이름(up/down/left/right/space/enter/esc/tab/shift_l/shift_r/
++    # ctrl_l/ctrl_r/alt_l/alt_r/backspace) 이거나 글자 한 개("w", "g" 등) 다.
++    #
++    # 주의: gripper_close 가 내부적으로 open_gripper_command 를 세운다. gym-hil 의
++    # 변수명 open/close 는 실제 동작과 반대다(액션 2.0 = ctrl 255 = 손가락 닫힘).
++    # 여기서는 실제 동작 기준으로 이름을 붙였다.
++    DEFAULT_KEYMAP = {
++        "forward_x": "up",
++        "backward_x": "down",
++        "forward_y": "left",
++        "backward_y": "right",
++        "forward_z": "w",
++        "backward_z": "ctrl_l",
++        "gripper_close": "g",
++        "gripper_open": "shift_l",
++        "intervention": "space",
++        "success": "enter",
++        "failure": "esc",
++        "rerecord": "r",
++    }
++
++    # 한국어 설명 (터미널 안내문에 쓴다)
++    _LABELS = {
++        "forward_x": "앞으로 (+x)",
++        "backward_x": "뒤로 (-x)",
++        "forward_y": "왼쪽 (+y)",
++        "backward_y": "오른쪽 (-y)",
++        "forward_z": "위로 (+z)",
++        "backward_z": "아래로 (-z)",
++        "gripper_close": "잡기 (그리퍼 닫기)",
++        "gripper_open": "놓기 (그리퍼 열기)",
++        "intervention": "조종권 ON/OFF  <-- 먼저 눌러야 나머지가 먹는다",
++        "success": "성공으로 끝내기 (보상 1.0 강제)",
++        "failure": "실패로 끝내기",
++        "rerecord": "이 에피소드 버리고 다시",
++    }
++
++    def __init__(self, x_step_size=0.01, y_step_size=0.01, z_step_size=0.01, config_path=None):
+         super().__init__(x_step_size, y_step_size, z_step_size)
+         self.key_states = {
+             "forward_x": False,
+@@ -136,74 +198,143 @@ class KeyboardController(InputController):
+             "rerecord": False,
+         }
+         self.listener = None
++        self.keymap = self._load_keymap(config_path)
++
++    @classmethod
++    def _load_keymap(cls, config_path=None):
++        """키 배치를 읽는다. 인자 > GYM_HIL_KEYMAP 환경변수 > 내장 기본값 순."""
++        import os
++
++        keymap = dict(cls.DEFAULT_KEYMAP)
++        path = config_path or os.environ.get("GYM_HIL_KEYMAP")
++        if not path:
++            return keymap
++        try:
++            with open(path) as f:
++                user = json.load(f)
++        except FileNotFoundError:
++            logging.warning(f"키맵 파일을 찾지 못했다: {path}. 기본 배치를 쓴다.")
++            return keymap
++        except Exception as exc:  # noqa: BLE001
++            logging.warning(f"키맵 파일을 읽지 못했다({path}): {exc}. 기본 배치를 쓴다.")
++            return keymap
++
++        unknown = [k for k in user if k not in keymap]
++        if unknown:
++            logging.warning(f"키맵에서 모르는 항목은 무시한다: {unknown}")
++        keymap.update({k: v for k, v in user.items() if k in keymap})
++
++        seen = {}
++        for action, key in keymap.items():
++            if key in seen:
++                logging.warning(f"키 '{key}' 가 '{seen[key]}' 와 '{action}' 에 겹쳐 있다. 하나만 동작한다.")
++            seen[key] = action
++        return keymap
++
++    @staticmethod
++    def _resolve(name):
++        """키 이름 하나를 pynput 키 객체 목록으로 바꾼다(좌/우 구분 없는 변형 포함)."""
++        from pynput import keyboard
++
++        aliases = {
++            "shift_l": ["shift_l", "shift"],
++            "ctrl_l": ["ctrl_l", "ctrl"],
++            "alt_l": ["alt_l", "alt"],
++            "shift_r": ["shift_r"],
++            "ctrl_r": ["ctrl_r"],
++            "alt_r": ["alt_r", "alt_gr"],
++        }
++        out = []
++        for candidate in aliases.get(name, [name]):
++            key = getattr(keyboard.Key, candidate, None)
++            if key is not None:
++                out.append(key)
++        return out
+ 
+     def start(self):
+         """Start the keyboard listener."""
+         from pynput import keyboard
+ 
++        # 특수키 -> 동작, 글자 -> 동작 두 표를 만든다.
++        special, chars = {}, {}
++        for action, name in self.keymap.items():
++            resolved = self._resolve(name)
++            if resolved:
++                for key in resolved:
++                    special[key] = action
++            elif len(name) == 1:
++                chars[name.lower()] = action
++            else:
++                logging.warning(f"키 이름을 알 수 없다: '{name}' ({action}). 이 동작은 비활성화된다.")
++
++        def lookup(key):
++            """눌린 키를 동작 이름으로 바꾼다. 대소문자와 Ctrl 조합을 정규화한다."""
++            action = special.get(key)
++            if action is not None:
++                return action
++            ch = getattr(key, "char", None)
++            if not ch:
++                return None
++            # Ctrl 을 같이 누르면 제어문자(\x01~\x1a)로 들어온다. 원래 글자로 되돌린다.
++            if len(ch) == 1 and 1 <= ord(ch) <= 26:
++                ch = chr(ord(ch) + 96)
++            return chars.get(ch.lower())
++
+         def on_press(key):
+-            try:
+-                if key == keyboard.Key.up:
+-                    self.key_states["forward_x"] = True
+-                elif key == keyboard.Key.down:
+-                    self.key_states["backward_x"] = True
+-                elif key == keyboard.Key.left:
+-                    self.key_states["forward_y"] = True
+-                elif key == keyboard.Key.right:
+-                    self.key_states["backward_y"] = True
+-                elif key == keyboard.Key.shift:
+-                    self.key_states["backward_z"] = True
+-                elif key == keyboard.Key.shift_r:
+-                    self.key_states["forward_z"] = True
+-                elif key == keyboard.Key.ctrl_r:
+-                    self.open_gripper_command = True
+-                elif key == keyboard.Key.ctrl_l:
+-                    self.close_gripper_command = True
+-                elif key == keyboard.Key.enter:
+-                    self.key_states["success"] = True
+-                    self.episode_end_status = "success"
+-                elif key == keyboard.Key.esc:
+-                    self.key_states["failure"] = True
+-                    self.episode_end_status = "failure"
+-                elif key == keyboard.Key.space:
+-                    self.key_states["intervention"] = not self.key_states["intervention"]
+-                elif key == keyboard.Key.r:
+-                    self.key_states["rerecord"] = True
+-            except AttributeError:
+-                pass
++            action = lookup(key)
++            if action is None:
++                return
++            if action == "intervention":
++                self.key_states["intervention"] = not self.key_states["intervention"]
++                logging.info(
++                    "[키보드] 조종권 %s", "ON — 이제 키가 먹는다" if self.key_states["intervention"] else "OFF"
++                )
++            elif action == "gripper_close":
++                # gym-hil 내부 이름과 실제 동작이 반대다. open_gripper_command 가 손가락을 닫는다.
++                self._set_gripper("open", True)
++            elif action == "gripper_open":
++                self._set_gripper("close", True)
++            elif action == "success":
++                self.key_states["success"] = True
++                self.episode_end_status = "success"
++            elif action == "failure":
++                self.key_states["failure"] = True
++                self.episode_end_status = "failure"
++            elif action == "rerecord":
++                self.key_states["rerecord"] = True
++                self.episode_end_status = "rerecord_episode"
++            else:
++                self.key_states[action] = True
+ 
+         def on_release(key):
+-            try:
+-                if key == keyboard.Key.up:
+-                    self.key_states["forward_x"] = False
+-                elif key == keyboard.Key.down:
+-                    self.key_states["backward_x"] = False
+-                elif key == keyboard.Key.left:
+-                    self.key_states["forward_y"] = False
+-                elif key == keyboard.Key.right:
+-                    self.key_states["backward_y"] = False
+-                elif key == keyboard.Key.shift:
+-                    self.key_states["backward_z"] = False
+-                elif key == keyboard.Key.shift_r:
+-                    self.key_states["forward_z"] = False
+-                elif key == keyboard.Key.ctrl_r:
+-                    self.open_gripper_command = False
+-                elif key == keyboard.Key.ctrl_l:
+-                    self.close_gripper_command = False
+-            except AttributeError:
+-                pass
++            action = lookup(key)
++            if action is None:
++                return
++            if action == "gripper_close":
++                self._set_gripper("open", False)
++            elif action == "gripper_open":
++                self._set_gripper("close", False)
++            elif action in ("intervention", "success", "failure", "rerecord"):
++                return
++            else:
++                self.key_states[action] = False
+ 
+         self.listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+         self.listener.start()
+ 
+-        print("Keyboard controls:")
+-        print("  Arrow keys: Move in X-Y plane")
+-        print("  Shift and Shift_R: Move in Z axis")
+-        print("  Right Ctrl and Left Ctrl: Open and close gripper")
+-        print("  Enter: End episode with SUCCESS")
+-        print("  Backspace: End episode with FAILURE")
+-        print("  Space: Start/Stop Intervention")
+-        print("  ESC: Exit")
++        pretty = {
++            "up": "위쪽 화살표", "down": "아래쪽 화살표", "left": "왼쪽 화살표", "right": "오른쪽 화살표",
++            "space": "Space", "enter": "Enter", "esc": "Esc", "backspace": "Backspace", "tab": "Tab",
++            "shift_l": "왼쪽 Shift", "shift_r": "오른쪽 Shift",
++            "ctrl_l": "왼쪽 Ctrl", "ctrl_r": "오른쪽 Ctrl",
++            "alt_l": "왼쪽 Alt", "alt_r": "오른쪽 Alt",
++        }
++        print("\n키 배치 (configs/keymap.json 에서 바꿀 수 있다)")
++        for action in self.DEFAULT_KEYMAP:
++            name = self.keymap.get(action, "")
++            label = pretty.get(name, f"'{name}'")
++            print(f"  {label:16s} {self._LABELS.get(action, action)}")
++        print()
+ 
+     def stop(self):
+         """Stop the keyboard listener."""
+@@ -246,6 +377,10 @@ class KeyboardController(InputController):
+         """Reset the controller."""
+         for key in self.key_states:
+             self.key_states[key] = False
++        # 상류는 그리퍼 명령을 지우지 않았다. 그래서 키 하나가 붙잡히면 **다음 에피소드까지**
++        # 그대로 끌고 가 연속으로 망가진다(7,8,9번 에피소드가 그랬다). 에피소드마다 초기화한다.
++        self._set_gripper("open", False)
++        self._set_gripper("close", False)
+ 
+ 
+ class GamepadController(InputController):

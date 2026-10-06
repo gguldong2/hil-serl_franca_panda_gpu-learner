@@ -1,0 +1,13 @@
+diff --git a/src/lerobot/envs/configs.py b/src/lerobot/envs/configs.py
+index 312b026..d6e0e34 100644
+--- a/src/lerobot/envs/configs.py
++++ b/src/lerobot/envs/configs.py
+@@ -281,7 +281,7 @@ class GripperConfig:
+ class ResetConfig:
+     """Configuration for environment reset behavior."""
+ 
+-    fixed_reset_joint_positions: Any | None = None
++    fixed_reset_joint_positions: list[float] | None = None  # 호환성 수정: upstream main 과 동일 (draccus encode 시 typing.Any 오류 방지)
+     reset_time_s: float = 5.0
+     control_time_s: float = 20.0
+     terminate_on_success: bool = True
