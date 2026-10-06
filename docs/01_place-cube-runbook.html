@@ -424,7 +424,7 @@ c["policy"]["dataset_stats"]=json.load(
 json.dump(c,open(f,"w"),indent=4); print("스모크 설정 갱신")
 PY
 
-rm -rf outputs/train/place_smoke_gpu outputs/train/place_smoke_gpu_actor
+rm -rf outputs/train/panda_place_smoke outputs/train/panda_place_smoke_actor
 bash scripts/run_smoke_test.sh configs/train_config_place_smoke_gpu.json 900</code></pre>
   </div>
   <div class="cmd">
@@ -985,7 +985,7 @@ json.dump(c,open(f,"w"),indent=4)
 print("스모크 설정 갱신")
 PY
 
-rm -rf outputs/train/place_smoke_gpu outputs/train/place_smoke_gpu_actor
+rm -rf outputs/train/panda_place_smoke outputs/train/panda_place_smoke_actor
 bash scripts/run_smoke_test.sh configs/train_config_place_smoke_gpu.json 900</code></pre>
   </div>
   <p class="sub">

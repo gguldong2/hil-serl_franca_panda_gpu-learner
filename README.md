@@ -159,6 +159,37 @@ python3 scripts/report.py        # 런 하나를 HTML 보고서로
 조작 키(개입)는 `configs/keymap.json` 에서 바꾼다. 기본 배치와 전체 절차는
 → [`docs/01_place-cube-runbook.html`](docs/01_place-cube-runbook.html)
 
+### 실험 이름 규칙 — 로봇 이름을 앞에 붙인다
+
+로봇이 둘 이상이 되면 **"지금 보는 게 어느 실험이냐"** 를 헷갈리는 게 제일 위험하다.
+그래서 `job_name` / `output_dir` 은 로봇 이름으로 시작한다.
+
+```
+outputs/train/panda_place_smoke/     outputs/train/ur5e_place_01/
+```
+
+`train.sh new` 가 설정의 `env.task` 에서 로봇을 뽑아 **자동으로 앞에 붙인다.**
+
+```bash
+bash scripts/train.sh new place_v2
+#   env.task = PandaPlaceCube...  -> configs/train_config_panda_place_v2.json
+#   env.task = UR5ePlaceCube...   -> configs/train_config_ur5e_place_v2.json
+```
+
+`train.sh status` 첫 줄에도 로봇과 태스크가 찍힌다.
+
+```
+  로봇 panda   ·   PandaPlaceCubeKeyboard-v0
+  outputs/train/03_exp_b_assist
+```
+
+> `03_exp_b_assist` 만 예외다. 위 결과를 낸 런이고 산출물이 36 GB 라
+> 이름을 바꾸면 기존 체크포인트와 끊긴다. 그대로 둔다.
+
+그리고 `train.sh actor` 는 **돌고 있는 learner 와 설정 파일이 다르면 멈춘다**
+(`HIL_FORCE=1` 로만 강행). 로봇이 둘이면 상태 차원이 달라(18 vs 16) 어긋났을 때
+피해가 크므로 이 가드가 중요하다.
+
 ### 시연을 새로 모으려면
 
 `data/panda_place_cube_demo/` 를 그대로 쓰면 바로 학습할 수 있다. 직접 모으려면:
@@ -222,6 +253,7 @@ python3 scripts/merge_demos.py --success-only    # 성공판만 모아 병합
 │   └── server22/                 00_check → 01_install → 02_setup → 03_verify → 04_vnc → 05_nvidia_gl
 ├── docs/
 │   ├── gpu.md                    ★ GPU 를 어디에 어떻게 쓰는가
+│   ├── ur5e-refactoring-prd.md   UR5e 로 바꿔 돌리기 위한 단계별 계획
 │   ├── server-ubuntu22.04-gpu.md 서버 설치 전체 기록과 문제 해결
 │   ├── patches/README.md         ★ 패치 목록·순서·재현 점검
 │   ├── 01_place-cube-runbook.html 조작 절차 (어떻게 하는가)
@@ -247,6 +279,7 @@ python3 scripts/merge_demos.py --success-only    # 성공판만 모아 병합
 | 실제 조작 절차 | [`docs/01_place-cube-runbook.html`](docs/01_place-cube-runbook.html) |
 | 학습이 왜 그렇게 움직이나 | [`docs/02_place-cube-hil-serl-QA.html`](docs/02_place-cube-hil-serl-QA.html) |
 | 에러가 났다 | [`docs/troubleshooting.md`](docs/troubleshooting.md), `server-ubuntu22.04-gpu.md` §6 |
+| **다른 로봇(UR5e)으로 바꾸려면** | [`docs/ur5e-refactoring-prd.md`](docs/ur5e-refactoring-prd.md) |
 
 ---
 

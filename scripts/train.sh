@@ -96,7 +96,14 @@ cfg = j(cfg_path, {})
 # actor 의 `for interaction_step in range(cfg.policy.online_steps)` 다.
 total = (cfg.get("policy") or {}).get("online_steps")
 
+task = (cfg.get("env") or {}).get("task") or "?"
+# 로봇이 둘 이상이 되면 "지금 보고 있는 게 어느 실험이냐" 가 제일 헷갈린다.
+# 태스크 id 앞부분이 곧 로봇이다 (PandaPlaceCube... -> panda, UR5ePlaceCube... -> ur5e).
+import re as _re
+_m = _re.match(r"(UR5e|Panda|[A-Z][a-z0-9]*)", task)
+robot = _m.group(1).lower() if _m else "?"
 print("=" * 60)
+print(f"  로봇 {robot}   ·   {task}")
 print(f"  {out}")
 print("=" * 60)
 if not ts:
@@ -319,6 +326,17 @@ print(f\"         학습 스텝 {d['step']:,} · 상호작용 스텝 {d['interac
       echo "  예:   bash scripts/train.sh new place_v2"
       exit 1
     fi
+    # 베낄 설정의 태스크에서 로봇을 뽑아 이름 앞에 붙인다.
+    # 로봇이 둘 이상이 되면 폴더 이름만 보고 어느 로봇인지 알 수 있어야 한다.
+    ROBOT="$(python -c "
+import json,re,sys
+t=(json.load(open(sys.argv[1])).get('env') or {}).get('task') or ''
+m=re.match(r'(UR5e|Panda|[A-Z][a-z0-9]*)', t)
+print(m.group(1).lower() if m else '')" "$CFG" 2>/dev/null)"
+    case "$NAME" in
+      "$ROBOT"_*) ;;                                   # 이미 붙어 있으면 그대로
+      *) [ -n "$ROBOT" ] && NAME="${ROBOT}_${NAME}" ;;
+    esac
     NEWCFG="configs/train_config_${NAME}.json"
     if [ -e "$NEWCFG" ]; then echo "[train] $NEWCFG 이 이미 있다."; exit 1; fi
     python - "$CFG" "$NEWCFG" "$NAME" <<'PYEND'

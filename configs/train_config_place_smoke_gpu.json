@@ -1,6 +1,6 @@
 {
-    "output_dir": "outputs/train/place_smoke_gpu",
-    "job_name": "place_smoke_gpu",
+    "output_dir": "outputs/train/panda_place_smoke",
+    "job_name": "panda_place_smoke",
     "resume": false,
     "seed": 1000,
     "num_workers": 4,
