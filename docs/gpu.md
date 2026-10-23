@@ -71,9 +71,17 @@ export LD_LIBRARY_PATH="$HIL_ROOT/nvidia-gl:$LD_LIBRARY_PATH"
 export __EGL_VENDOR_LIBRARY_FILENAMES="$HIL_ROOT/nvidia-gl/nvidia_egl_icd.json"
 ```
 
-> ⚠️ **버전이 정확히 맞아야 한다.** 호스트 드라이버가 올라가면(`nvidia-smi` 버전이 바뀌면)
-> `05_nvidia_gl.sh --force` 로 다시 받아야 한다. 어긋나면 EGL 초기화가 실패하고 조용히
-> llvmpipe 로 폴백한다 — 에러 없이 30배 느려지므로 알아채기 어렵다.
+> ⚠️ **버전이 정확히 맞아야 한다.** 호스트 드라이버가 바뀌면(`nvidia-smi` 버전이 바뀌면)
+> `05_nvidia_gl.sh --force` 로 다시 받아야 한다. 어긋나면 EGL 이 장치를 **0개**로 보고
+> `RuntimeError: MUJOCO_EGL_DEVICE_ID ... between 0 and -1` 로 죽는다.
+> (운이 나쁘면 죽지 않고 조용히 llvmpipe 로 폴백해 30배 느려진다.)
+>
+> **이건 한 번 하고 끝나는 설정이 아니다.** 관리형 컨테이너는 다시 뜰 때마다 다른 호스트에
+> 올라갈 수 있고 드라이버 버전이 따라 바뀐다. 실제 기록: `535.183.06`(9/17) →
+> `535.247.01`(10/14) → `535.183.06`(10/23). 그때마다 어긋났다.
+>
+> 그래서 **학습을 띄우기 전에 `bash scripts/preflight.sh` 를 먼저 친다.** 드라이버와
+> `nvidia-gl/` 버전 대조 · EGL 실렌더 · VNC · 디스크 · 중복 실행을 한 번에 본다.
 >
 > `nvidia-gl/` 은 **git 에 올리지 않는다**(드라이버 버전에 묶인 바이너리, 127 MB).
 > 새 머신에서는 반드시 그 머신의 드라이버 버전으로 다시 만든다.

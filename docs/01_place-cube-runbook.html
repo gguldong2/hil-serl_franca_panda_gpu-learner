@@ -376,9 +376,9 @@
   <p class="sub">tmux 칸 4~5개를 쓴다. 각 블록 왼쪽 주석이 어느 칸인지다. prefix 는 <kbd>Ctrl</kbd>+<kbd>A</kbd>.</p>
   <div class="cmd">
     <div class="cmd-head"><span>0 · 준비 (매번)</span><button type="button" class="copy">복사</button></div>
-<pre><code>tmux new -s hil          <span class="c"># 또는 tmux a -t hil</span>
+<pre><code>tmux new -A -s hil       <span class="c"># 있으면 붙고 없으면 만든다</span>
 cd ~/project/hil-serl-mujoco-franka
-pgrep -af Xtigervnc || bash scripts/server22/04_start_vnc.sh
+bash scripts/preflight.sh                          <span class="c"># 점검. "막힘" 이면 --fix 를 붙여 다시 (01 참조)</span>
 bash scripts/dashboard.sh                          <span class="c"># 칸1 — 켜 둔 채로</span>
 <span class="c"># VS Code PORTS 탭에 8088 포워딩 -> http://localhost:8088/</span></code></pre>
   </div>
@@ -459,6 +459,10 @@ python scripts/eval_policy.py \
     <div class="cmd-head"><span>8 · 끊겼을 때 — 하던 실험 이어서</span><button type="button" class="copy">복사</button></div>
 <pre><code>tmux a -t hil                        <span class="c"># SSH 만 끊긴 경우 — 이것만 하면 끝</span>
 
+<span class="c"># "can't find session" 이면 컨테이너가 다시 뜬 것 — 세션·VNC 가 다 사라졌다:</span>
+tmux new -A -s hil
+bash scripts/preflight.sh --fix      <span class="c"># VNC · EGL 을 점검하고 고친다</span>
+
 <span class="c"># 프로세스가 죽었으면, 칸2·칸3 에서 각각:</span>
 export CFG=configs/train_config_&lt;이름&gt;.json    <span class="c"># 실험 이름을 바꿨을 때만</span>
 bash scripts/train.sh learner        <span class="c"># 칸2 — 자동으로 이어서</span>
@@ -509,8 +513,11 @@ done
 <pre><code><span class="c"># 처음 한 번</span>
 tmux new -s hil
 
-<span class="c"># 끊겼다가 돌아왔을 때 — 이 한 줄이면 하던 화면 그대로 복구된다</span>
+<span class="c"># SSH 만 끊겼다가 돌아왔을 때 — 하던 화면 그대로</span>
 tmux a -t hil
+
+<span class="c"># 둘을 합친 한 줄 — 있으면 붙고, 없으면 만든다</span>
+tmux new -A -s hil
 
 <span class="c"># 살아 있는 세션 확인</span>
 tmux ls</code></pre>
@@ -527,6 +534,93 @@ tmux ls</code></pre>
         <tr><td>스크롤 (로그 위로 올려보기) — 나올 때 <kbd>q</kbd></td><td class="k"><kbd>Ctrl</kbd>+<kbd>b</kbd> 뗀 뒤 <kbd>[</kbd></td></tr>
       </tbody>
     </table>
+  </div>
+
+  <h3>띄우기 전 점검 — 컨테이너가 다시 떴거나, 서버를 옮겼거나, 오랜만일 때</h3>
+  <p>
+    이 서버는 컨테이너다. 컨테이너가 다시 뜨면 <strong>디스크(코드·체크포인트·로그·홈 설정)는 남고,
+    프로세스는 전부 사라진다.</strong> tmux 세션, VNC, learner/actor, 대시보드가 다 죽는다.
+    <code>tmux a -t hil</code> 이 <code>can't find session</code> 을 내면 이 경우다 — 세션은 메모리에만 있어서 되살릴 수 없다.
+  </p>
+  <div class="cmd">
+    <div class="cmd-head"><span>점검 (아무것도 바꾸지 않는다)</span><button type="button" class="copy">복사</button></div>
+<pre><code>cd ~/project/hil-serl-mujoco-franka
+bash scripts/preflight.sh            <span class="c"># 마지막 줄이 "준비됨" 이면 끝</span>
+bash scripts/preflight.sh --fix      <span class="c"># "막힘" 이면 — 고칠 수 있는 것을 고치고 다시 점검</span></code></pre>
+  </div>
+  <div class="cmd">
+    <div class="cmd-head"><span>정상일 때 (예시)</span><button type="button" class="copy">복사</button></div>
+<pre><code>== 1. GPU 드라이버 / nvidia-gl ==
+  커널 드라이버 535.247.01 · 시스템 libEGL_nvidia 0개 · nvidia-gl/ 535.247.01
+  [OK]   버전 일치 (535.247.01)
+== 2. EGL 실제 렌더링 ==
+  [OK]   NVIDIA A100 80GB PCIe/PCIe/SSE2 2.7ms
+== 3. X 디스플레이 :1 (VNC) ==
+  [OK]   X :1 떠 있음
+== 4. 디스크 ==
+  [주의] 39GB 남음(97%). ... 정리를 권함
+== 5. 이미 떠 있는 것 ==
+  [OK]   lerobot.rl.learner 없음 ...
+
+준비됨 — 학습을 띄워도 된다.</code></pre>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>점검 항목</th><th>언제 깨지나</th><th>깨지면</th><th>고치는 법 (<code>--fix</code> 가 하는 일)</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="k">X 디스플레이 :1 (VNC)</td>
+          <td><strong>컨테이너가 다시 뜰 때마다</strong></td>
+          <td>키보드 개입(<kbd>Space</kbd> 등)이 안 먹는다. <code>--window</code> 면 actor 가 죽는다</td>
+          <td><code>bash scripts/server22/04_start_vnc.sh</code> — 비밀번호(<code>~/.vnc/passwd</code>)는 홈에 남아 다시 묻지 않는다</td>
+        </tr>
+        <tr>
+          <td class="k">EGL (GPU 카메라 렌더)</td>
+          <td><strong>호스트 GPU 드라이버 버전이 바뀔 때</strong> (컨테이너 재시작과 같이 오는 일이 많다)</td>
+          <td>actor 가 렌더링에서 죽거나(<code>between 0 and -1</code>), CPU 로 폴백해 15배 느려진다. learner 는 영향 없음</td>
+          <td><code>bash scripts/server22/05_nvidia_gl.sh --force</code> — 지금 드라이버와 같은 버전 런파일(약 330 MB)을 받아 <code>nvidia-gl/</code> 에 압축만 푼다</td>
+        </tr>
+        <tr>
+          <td class="k">디스크</td>
+          <td>학습이 길어질수록 (체크포인트 2,000 스텝마다 81 MB)</td>
+          <td>저장 도중 꽉 차면 <strong>버퍼 스냅샷이 깨져</strong> 다음 재개가 망가진다</td>
+          <td>자동으로 고치지 않는다. 오래된 체크포인트를 직접 정리한다 (<code>last</code> 와 <code>outputs/releases/</code> 는 남긴다)</td>
+        </tr>
+        <tr>
+          <td class="k">이미 떠 있는 프로세스</td>
+          <td>점검을 학습 중에 돌렸을 때</td>
+          <td>같은 것을 또 띄우면 포트·화면 파일이 겹친다</td>
+          <td>그대로 둔다. 새로 띄울 필요가 없다는 뜻이다</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <span class="tag">실제로 겪은 일 — 2026-10-14</span>
+    <p>
+      2주 만에 접속하니 <code>tmux a -t hil-serl</code> 이 <code>can't find session</code>.
+      컨테이너가 새로 떠 있었다(호스트명이 바뀌고 <code>uptime</code> 14분). 같이 바뀐 것:
+      VNC 꺼짐, 그리고 GPU 드라이버 <code>535.183.06 → 535.247.01</code>.
+      <code>nvidia-gl/</code> 은 옛 버전 그대로라 EGL 이 GPU 를 0개 찾았다.
+      체크포인트 401개(학습 802,000 스텝)·로그·<code>~/.tmux.conf</code> 는 전부 남아 있었다.
+      <code>05_nvidia_gl.sh</code> + <code>04_start_vnc.sh</code> 뒤 learner → (4분 40초 뒤) actor 순으로 띄워 그대로 이어졌다.
+    </p>
+  </div>
+
+  <div class="note warn">
+    <span class="tag">다른 GPU 서버로 옮길 때</span>
+    <p>
+      <code>nvidia-gl/</code> 은 <strong>이 서버의 드라이버 버전에 묶인 파일</strong>이다. 프로젝트를 통째로 복사해 가면 같이 따라간다.
+    </p>
+    <ul>
+      <li><strong>그 서버 컨테이너에 그래픽 라이브러리가 없으면</strong>(이 서버와 같은 경우) — 거기서 <code>05_nvidia_gl.sh --force</code> 를 다시 돌린다.
+          ICD 파일에 프로젝트 <strong>절대경로</strong>가 박혀 있어서, 경로가 달라도 다시 돌려야 한다.</li>
+      <li><strong>그 서버가 그래픽 라이브러리를 이미 갖고 있으면</strong>(<code>ldconfig -p | grep libEGL_nvidia</code> 가 나오면)
+          — <code>nvidia-gl/</code> 이 오히려 엉뚱한 버전으로 덮어쓴다. <code>rm -rf nvidia-gl</code> 로 지운다. 점검 스크립트가 이 경우를 알려 준다.</li>
+      <li>GPU 가 없는 곳이면 EGL 이 CPU 로 돈다. 돌기는 하지만 actor 가 실시간(20 fps)을 못 맞춘다.</li>
+    </ul>
   </div>
 
   <h3>환경 변수</h3>

@@ -308,11 +308,22 @@ CFG=configs/train_config_ur5e_place.json bash scripts/train.sh actor
 Panda 가 지금 정상임을 먼저 기록해 둔다. 이후 어떤 변경이 Panda 를 깨뜨렸는지 즉시 알기 위해서다.
 
 ```bash
+bash scripts/preflight.sh            # ① 환경 점검. "준비됨" 이 나와야 다음으로 간다
+#   "막힘" 이면:  bash scripts/preflight.sh --fix
 bash scripts/server22/03_verify.sh gpu
 scripts/run_smoke_test.sh configs/train_config_place_smoke_gpu.json
 ```
 
-**완료 기준**: 스모크가 체크포인트까지 통과. 로그를 `outputs/` 에 남긴다.
+> ① 을 건너뛰지 말 것. **이 서버는 컨테이너가 다시 뜰 때 호스트 드라이버 버전이 바뀐다.**
+> 그러면 `nvidia-gl/` 의 EGL 라이브러리와 어긋나 **EGL 이 장치를 0개로 보고**
+> `MUJOCO_EGL_DEVICE_ID ... between 0 and -1` 로 죽는다. 에러 메시지가 원인을
+> 전혀 알려주지 않아서, 모르면 한참 헤맨다.
+>
+> 실제 기록: 9/17 에 535.183.06 으로 맞춰 둔 것이 10/14 에 535.247.01 로 바뀌었고,
+> 10/23 에 다시 535.183.06 으로 돌아와 어긋났다. **한 번 하고 끝나는 설정이 아니라
+> 컨테이너가 뜰 때마다 확인할 것**이다.
+
+**완료 기준**: `preflight.sh` 가 "준비됨", 스모크가 체크포인트까지 통과. 로그를 `outputs/` 에 남긴다.
 
 ---
 

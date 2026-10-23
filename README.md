@@ -127,6 +127,9 @@ Blackwell(sm_100/120)만 cu128 이 필요하고, 스크립트가 `compute_cap` �
 터미널 세 개. 모두 프로젝트 루트에서 시작한다.
 
 ```bash
+# 칸 0 — 띄우기 전 점검. 컨테이너가 다시 떴거나 오랜만이면 반드시 (docs/gpu.md)
+bash scripts/preflight.sh          # "막힘" 이면  bash scripts/preflight.sh --fix
+
 # 칸 A — learner (먼저. gRPC localhost:50051 바인딩 후 시연 데이터 로딩)
 bash scripts/train.sh learner
 
@@ -245,6 +248,7 @@ python3 scripts/merge_demos.py --success-only    # 성공판만 모아 병합
 │   └── keymap.json                          개입 키 배치
 ├── scripts/
 │   ├── env.sh                    venv·HF 캐시·MUJOCO_GL·EGL ICD (모든 스크립트가 source)
+│   ├── preflight.sh              ★ 띄우기 전 점검 (드라이버·EGL·VNC·디스크·중복). --fix 로 복구
 │   ├── train.sh                  learner/actor/status/pause/resume/save/stop/new
 │   ├── dashboard.sh              진행 대시보드 (8088)
 │   ├── view.py                   시뮬레이션 전용 뷰어 (8089)
