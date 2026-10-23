@@ -417,25 +417,117 @@ python3 scripts/update_dataset_stats.py --repo_id ... --root ... --train_config 
 
 ---
 
-### Phase 5 — `--robot` CLI (선택. **UR5e 가 돌아간 뒤에**)
+### Phase 5 — `--robot` CLI (**UR5e 가 돌아간 뒤에**)
 
+#### 요구사항 (사용자 결정, 2026-10-23)
+
+- 명령은 로봇과 상관없이 **똑같이** 친다. 바뀌는 것은 `--robot` 값 하나뿐이다.
+- `--robot` 은 **필수. 기본값 없음.**
+- 그 값 하나로 로봇에 맞는 config · 시연 데이터 · 출력 폴더 · gym env 가 전부 정해진다.
+
+```bash
+# Panda                                             # UR5e
+bash scripts/train.sh learner --robot panda          bash scripts/train.sh learner --robot ur5e
+bash scripts/train.sh actor   --robot panda          bash scripts/train.sh actor   --robot ur5e
+bash scripts/train.sh status  --robot panda          bash scripts/train.sh status  --robot ur5e
+bash scripts/train.sh stop    --robot panda          bash scripts/train.sh stop    --robot ur5e
+bash scripts/record.sh 01     --robot panda          bash scripts/record.sh 01     --robot ur5e
+bash scripts/teleop.sh        --robot panda          bash scripts/teleop.sh        --robot ur5e
 ```
-configs/robots/
-  franka-panda/ {train,record,teleop}.json
-  ur5e/         {train,record,teleop}.json
-```
+
+#### 적용 범위
 
 | 명령 | `--robot` |
 | --- | --- |
-| `train.sh learner` / `actor` / `new`, `record.sh`, `teleop.sh` | **필수** |
-| `train.sh status` / `pause` / `resume` / `save` / `stop` | **받지 않는다** — 돌고 있는 것을 따라간다 |
-| `dashboard.sh` | 불필요 — 이미 돌고 있는 learner 의 `output_dir` 을 따라간다 |
+| `train.sh` 의 **모든** 하위 명령 — learner · actor · new · restart · status · pause · resume · save · stop | **필수** |
+| `record.sh`, `teleop.sh` | **필수** |
+| `dashboard.sh`, `view.py` | 받지 않음 — 보기 전용이고, 돌고 있는 learner 를 따라간다 |
 
-`CFG=` 는 일회성 설정을 가리키는 탈출구로 남긴다 (`CFG` 가 있으면 `--robot` 불필요).
+`--robot` 없이 치면 **사용 가능한 로봇 목록을 보여주고 실패**한다.
 
-**기본값을 두지 않고 필수로 하는 이유**: 기본값은 조용한 선택이다. UR5e 를 의도하고
-`train.sh learner` 를 쳤는데 Panda 가 떠서 20분 뒤에 알아차리는 것이 가장 흔한 사고다.
-40시간짜리 학습을 시작하는 명령에서 15글자 더 치는 비용은 없는 것과 같다.
+> **정정**: 이전 판(2026-10-06)에는 status · pause · resume · save · stop 이
+> "돌고 있는 것을 따라가므로 `--robot` 을 받지 않는다" 고 적었다. **틀렸다.**
+> 지금 코드는 그렇게 동작하지 않는다(아래). 사용자 요구대로 전부 필수로 한다.
+
+#### 왜 status · save · stop 에도 필수여야 하나 — 지금 코드의 함정
+
+```bash
+# scripts/train.sh
+31:  CFG="${CFG:-configs/train_config_panda_place_gpu.json}"   # 기본값이 Panda
+34:  OUT="$(... CFG 의 output_dir ...)"
+309: touch "$OUT/SAVE_NOW"                                     # save
+316: touch "$OUT/STOP_NOW"                                     # stop
+```
+
+`save` · `stop` · `status` 는 **돌고 있는 learner 를 찾아가지 않는다.**
+`CFG` 의 `output_dir` 을 볼 뿐이고, `CFG` 를 안 주면 **Panda 설정**이다.
+그리고 learner 는 트리거 파일을 **처리할 때만** 지우고, 시작할 때는 정리하지 않는다
+(`learner.py:521`, `:527`).
+
+로봇이 둘이면 이렇게 된다:
+
+1. UR5e learner 가 돌고 있다.
+2. `bash scripts/train.sh stop` — `CFG` 를 안 붙였다
+   → `outputs/train/panda_place_gpu/STOP_NOW` 가 생긴다. 화면에는 "요청했다". **성공처럼 보인다.**
+3. UR5e learner 는 **멈추지 않는다.**
+4. 며칠 뒤 Panda learner 를 이어서 띄운다 → 첫 스텝에서 남아 있던 `STOP_NOW` 를 보고
+   **바로 저장하고 종료한다.** 원인을 찾기 매우 어렵다.
+
+로봇이 하나인 지금도 `CFG=...03_exp_b_assist.json` 으로 learner 를 띄우고
+`stop` 을 `CFG` 없이 치면 같은 일이 생긴다.
+(2026-10-23 확인: 남아 있는 트리거 파일은 없다. 피해는 아직 없었다.)
+
+#### Phase 5 에서 같이 넣을 가드
+
+| 가드 | 내용 |
+| --- | --- |
+| **로봇 일치** | learner 가 돌고 있는데 그 config 의 로봇 ≠ `--robot` 이면 **거부**하고, 무엇이 돌고 있는지 알려준다. actor · status · pause · resume · save · stop 에 적용 |
+| **대상 확인** | `save` · `stop` 은 대상 로봇의 learner 가 **실제로 돌고 있을 때만** 트리거 파일을 놓는다. 안 돌면 "그 로봇의 learner 가 없다" 로 실패 — 남은 파일이 다음 실행을 죽이는 일을 막는다 |
+| (선택) 시작 시 정리 | learner 가 시작할 때 남은 `SAVE_NOW` · `STOP_NOW` 를 지우고 경고한다. `learner.py` 를 고쳐야 하므로 **lerobot 패치 0002 재생성 + 재현 점검**이 따라온다. 위 두 가드로 충분하면 생략 |
+
+#### 로봇 키 — 내부에서는 하나로 통일한다
+
+| | Panda | UR5e |
+| --- | --- | --- |
+| `--robot` 값 | **`panda`** (별칭 `franka-panda` 도 받는다) | **`ur5e`** |
+| 설정 폴더 | `configs/robots/panda/` | `configs/robots/ur5e/` |
+| 출력 폴더 접두사 | `panda_…` | `ur5e_…` |
+| gym id | `PandaPlaceCube…-v0` | `UR5ePlaceCube…-v0` |
+
+키를 `panda` 로 하는 이유: 이미 만든 것들 — `outputs/train/panda_place_gpu`,
+`panda_place_smoke`, `train.sh new` 의 자동 접두사 — 이 전부 `panda` 를 쓴다.
+`franka-panda` 로 치고 싶으면 별칭으로 받는다. **한 로봇에 이름이 둘이면** 폴더 · 로그 ·
+대시보드에서 헷갈리므로 내부 키는 하나만 둔다.
+
+```
+configs/robots/
+  panda/ {train,record,teleop}.json
+  ur5e/  {train,record,teleop}.json
+```
+
+`CFG=` 는 일회성 설정을 가리키는 탈출구로 남긴다. `CFG` 를 주면 `--robot` 은 생략할 수 있고,
+**둘 다 주면 서로 맞아야 한다**(로봇이 다르면 거부).
+
+#### 기본값을 두지 않는 이유
+
+기본값은 조용한 선택이다. UR5e 를 의도하고 `train.sh learner` 를 쳤는데 Panda 가 떠서
+20분 뒤에 알아차리는 것이 가장 흔한 사고다. 위의 `stop` 함정도 결국 "기본값이 조용히 Panda 를
+골랐다" 가 원인이다. 40시간짜리 학습에서 `--robot ur5e` 를 더 치는 비용은 없는 것과 같다.
+
+#### 왜 Phase 5 가 마지막인가
+
+로봇이 하나뿐일 때 이 인터페이스를 만들면 **"로봇마다 무엇이 다른가"** 를 추측으로 정하게 된다.
+Phase 3 에서 `cartesian_bounds` 를 config 로 올려야 한다고 밝혀질 수도 있다(§5).
+UR5e 를 `CFG=` 로 한 번 돌려 보면 차이가 전부 드러나고, 그 뒤엔 위 표를 그대로 구현하면 된다.
+**`CFG=` 로 이미 기능은 100% 가능하다** — Phase 5 는 편의와 안전장치다.
+
+#### 완료 기준
+
+1. 위 명령 표의 Panda · UR5e 명령이 각각 맞는 config · 데이터 · 출력 폴더로 간다
+2. `--robot` 을 빼면 로봇 목록과 함께 실패한다
+3. UR5e learner 가 도는 중에 `train.sh stop --robot panda` → **거부**된다
+4. Panda 와 UR5e 명령은 **`--robot` 값 말고는 글자 하나도 다르지 않다**
+5. 기존 Panda 산출물(`panda_place_gpu`, `panda_place_smoke`, `03_exp_b_assist`)을 그대로 이어서 쓸 수 있다
 
 ---
 

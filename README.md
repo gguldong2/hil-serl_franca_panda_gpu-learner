@@ -139,6 +139,10 @@ bash scripts/dashboard.sh
 ```
 
 - 설정 파일은 `CFG` 로 바꾼다: `CFG=configs/train_config_place_smoke_gpu.json bash scripts/train.sh learner`
+- ⚠️ **`CFG` 로 띄웠다면 `status` · `save` · `stop` 에도 같은 `CFG` 를 붙인다.** 이 셋은 돌고 있는
+  learner 를 찾아가지 않고 `CFG` 의 폴더를 보는데, `CFG` 를 빼면 기본값(Panda 설정) 폴더에
+  트리거 파일을 놓는다 — 돌던 learner 는 안 멈추고, 남은 `STOP_NOW` 가 **나중에 그 설정으로 띄운
+  learner 를 바로 끝내 버린다.** 같은 칸에서 `export CFG=...` 해 두면 안전하다.
 - **이어서 하기는 같은 명령을 다시 치면 된다.** `checkpoints/last` 가 있으면 알아서 `--resume=true` 를 붙인다.
 - actor 는 learner 와 다른 `output_dir` 을 써야 한다 (스크립트가 `_actor` 를 붙여 처리).
 
