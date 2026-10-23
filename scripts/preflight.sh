@@ -3,6 +3,11 @@
 #
 #   bash scripts/preflight.sh          # 점검만 (아무것도 바꾸지 않는다)
 #   bash scripts/preflight.sh --fix    # 고칠 수 있는 것(EGL 라이브러리, VNC)은 고친 뒤 다시 점검
+#   bash scripts/preflight.sh --quick  # 빠른 점검 (EGL 실렌더 생략, 0.1초). 다른 스크립트가 자동으로 부른다
+#
+# train.sh actor / record.sh / teleop.sh 는 시작할 때 --quick 을 자동으로 돌린다.
+# 통과하면 아무것도 찍지 않고, 막히면 이유를 보여주고 멈춘다.
+# 건너뛰려면 앞에 HIL_SKIP_PREFLIGHT=1 (예: xvfb-run 으로 VNC 없이 돌릴 때).
 #
 # 보는 것
 #   1. GPU 드라이버와 nvidia-gl/ 의 버전이 같은가   (드라이버가 바뀌면 EGL 이 죽는다)
@@ -14,7 +19,13 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
-FIX=0; [ "${1:-}" = "--fix" ] && FIX=1
+FIX=0; QUICK=0
+case "${1:-}" in
+  --fix)   FIX=1 ;;
+  --quick) QUICK=1 ;;
+  "")      ;;
+  *)       echo "사용법: bash scripts/preflight.sh [--fix|--quick]"; exit 2 ;;
+esac
 
 ok()   { printf '  \033[32m[OK]\033[0m   %s\n' "$*"; }
 warn() { printf '  \033[33m[주의]\033[0m %s\n' "$*"; }
@@ -56,6 +67,10 @@ else
   fi
 fi
 
+if [ "$QUICK" = 1 ]; then
+echo "== 2. EGL 실제 렌더링 ================================= (--quick: 생략) =="
+echo "  1번의 버전 대조가 통과하면 거의 항상 같이 통과한다. 확실히 보려면 --quick 없이."
+else
 echo "== 2. EGL 실제 렌더링 ======================================================"
 R="$(bash -c 'source scripts/env.sh >/dev/null 2>&1; MUJOCO_GL=egl timeout 90 python - 2>&1' <<'PY'
 import os, time, mujoco, gym_hil
@@ -76,6 +91,7 @@ elif printf '%s' "$LINE" | grep -qi "llvmpipe\|softpipe"; then
   bad "EGL 이 CPU 로 폴백" "${LINE#RESULT } — GPU 가 안 잡혔다(1번 확인)"
 else
   ok "${LINE#RESULT }"
+fi
 fi
 
 echo "== 3. X 디스플레이 :1 (VNC) ================================================"

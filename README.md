@@ -127,9 +127,6 @@ Blackwell(sm_100/120)만 cu128 이 필요하고, 스크립트가 `compute_cap` �
 터미널 세 개. 모두 프로젝트 루트에서 시작한다.
 
 ```bash
-# 칸 0 — 띄우기 전 점검. 컨테이너가 다시 떴거나 오랜만이면 반드시 (docs/gpu.md)
-bash scripts/preflight.sh          # "막힘" 이면  bash scripts/preflight.sh --fix
-
 # 칸 A — learner (먼저. gRPC localhost:50051 바인딩 후 시연 데이터 로딩)
 bash scripts/train.sh learner
 
@@ -148,6 +145,19 @@ bash scripts/dashboard.sh
   learner 를 바로 끝내 버린다.** 같은 칸에서 `export CFG=...` 해 두면 안전하다.
 - **이어서 하기는 같은 명령을 다시 치면 된다.** `checkpoints/last` 가 있으면 알아서 `--resume=true` 를 붙인다.
 - actor 는 learner 와 다른 `output_dir` 을 써야 한다 (스크립트가 `_actor` 를 붙여 처리).
+
+> **환경 점검은 자동이다.** `train.sh learner` · `actor`, `record.sh`, `teleop.sh` 는
+> 시작할 때 `preflight.sh --quick` 을 돌린다(0.05초). 통과하면 아무것도 찍지 않고,
+> 막히면 이유를 보여주고 **학습을 띄우지 않는다.**
+>
+> 이 서버는 컨테이너가 다시 뜰 때 호스트 드라이버 버전이 바뀌어 `nvidia-gl/` 과
+> 어긋나는 일이 되풀이된다(`docs/gpu.md`). 그때 이 게이트가 막아 준다.
+>
+> ```bash
+> bash scripts/preflight.sh --fix    # 막혔을 때. EGL 라이브러리와 VNC 를 고친다
+> bash scripts/preflight.sh          # 전체 점검 (EGL 실렌더까지, 몇 초)
+> HIL_SKIP_PREFLIGHT=1 bash scripts/train.sh actor    # 건너뛰기 (xvfb 등)
+> ```
 
 진행 확인과 조작:
 
@@ -248,7 +258,8 @@ python3 scripts/merge_demos.py --success-only    # 성공판만 모아 병합
 │   └── keymap.json                          개입 키 배치
 ├── scripts/
 │   ├── env.sh                    venv·HF 캐시·MUJOCO_GL·EGL ICD (모든 스크립트가 source)
-│   ├── preflight.sh              ★ 띄우기 전 점검 (드라이버·EGL·VNC·디스크·중복). --fix 로 복구
+│   ├── preflight.sh              ★ 띄우기 전 점검 (드라이버·EGL·VNC·디스크·중복)
+│   │                             learner/actor/record/teleop 이 자동 호출. --fix 로 복구
 │   ├── train.sh                  learner/actor/status/pause/resume/save/stop/new
 │   ├── dashboard.sh              진행 대시보드 (8088)
 │   ├── view.py                   시뮬레이션 전용 뷰어 (8089)

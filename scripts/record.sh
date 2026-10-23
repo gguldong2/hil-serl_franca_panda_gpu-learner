@@ -18,6 +18,19 @@ source scripts/env.sh >/dev/null 2>&1
 export DISPLAY="${DISPLAY:-:1}"
 export MUJOCO_GL="${MUJOCO_GL:-egl}"   # 창을 띄워도 EGL 이면 속도가 정상이다
 
+# 띄우기 전 자동 점검 (0.05초). 통과하면 아무것도 찍지 않고, 막히면 이유를 보여주고 멈춘다.
+# 이 서버는 컨테이너가 다시 뜰 때 드라이버 버전이 바뀌어 EGL 이 죽는 일이 되풀이된다.
+# 건너뛰려면 앞에 HIL_SKIP_PREFLIGHT=1 (예: xvfb-run 으로 VNC 없이 돌릴 때).
+if [ "${HIL_SKIP_PREFLIGHT:-}" != "1" ] && [ -x scripts/preflight.sh ]; then
+  if ! _pf="$(bash scripts/preflight.sh --quick 2>&1)"; then
+    printf '%s\n' "$_pf"
+    echo
+    echo "[preflight] 환경이 준비되지 않았다.  고치기:  bash scripts/preflight.sh --fix"
+    echo "            (점검을 건너뛰려면 앞에 HIL_SKIP_PREFLIGHT=1)"
+    exit 1
+  fi
+fi
+
 # --window 를 앞에 붙이면 MuJoCo 창도 같이 띄운다. 속도 차이는 거의 없다(23 -> 28 ms/스텝).
 TASK_OVERRIDE=()
 if [ "${1:-}" = "--window" ]; then

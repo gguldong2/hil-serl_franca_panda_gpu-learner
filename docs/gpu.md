@@ -80,8 +80,15 @@ export __EGL_VENDOR_LIBRARY_FILENAMES="$HIL_ROOT/nvidia-gl/nvidia_egl_icd.json"
 > 올라갈 수 있고 드라이버 버전이 따라 바뀐다. 실제 기록: `535.183.06`(9/17) →
 > `535.247.01`(10/14) → `535.183.06`(10/23). 그때마다 어긋났다.
 >
-> 그래서 **학습을 띄우기 전에 `bash scripts/preflight.sh` 를 먼저 친다.** 드라이버와
-> `nvidia-gl/` 버전 대조 · EGL 실렌더 · VNC · 디스크 · 중복 실행을 한 번에 본다.
+> 그래서 **`train.sh learner`/`actor`, `record.sh`, `teleop.sh` 가 시작할 때
+> `preflight.sh --quick` 을 자동으로 돌린다**(0.05초). 버전이 어긋나 있으면
+> 학습을 띄우지 않고 멈춘다 — 조용히 CPU 로 떨어지거나 알 수 없는 EGL 에러로
+> 죽는 것을 막는다.
+>
+> ```bash
+> bash scripts/preflight.sh --fix   # 막혔을 때. 커널과 같은 버전을 다시 받아 nvidia-gl/ 을 교체
+> bash scripts/preflight.sh         # 전체 점검 (EGL 실렌더까지)
+> ```
 >
 > `nvidia-gl/` 은 **git 에 올리지 않는다**(드라이버 버전에 묶인 바이너리, 127 MB).
 > 새 머신에서는 반드시 그 머신의 드라이버 버전으로 다시 만든다.

@@ -308,8 +308,10 @@ CFG=configs/train_config_ur5e_place.json bash scripts/train.sh actor
 Panda 가 지금 정상임을 먼저 기록해 둔다. 이후 어떤 변경이 Panda 를 깨뜨렸는지 즉시 알기 위해서다.
 
 ```bash
-bash scripts/preflight.sh            # ① 환경 점검. "준비됨" 이 나와야 다음으로 간다
+bash scripts/preflight.sh            # ① 환경 점검 (전체). "준비됨" 이 나와야 다음으로 간다
 #   "막힘" 이면:  bash scripts/preflight.sh --fix
+#   참고: learner/actor/record/teleop 은 시작할 때 --quick 판을 자동으로 돌린다.
+#         ① 은 EGL 실렌더까지 보는 전체 점검이라 Phase 0 에서는 직접 한 번 친다.
 bash scripts/server22/03_verify.sh gpu
 scripts/run_smoke_test.sh configs/train_config_place_smoke_gpu.json
 ```
