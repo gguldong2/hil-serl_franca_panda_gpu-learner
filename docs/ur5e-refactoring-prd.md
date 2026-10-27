@@ -6,7 +6,7 @@ Franka Panda 로 돌고 있는 HIL-SERL 큐브 놓기 태스크를 **UR5e 로도
 | | |
 | --- | --- |
 | 작성 | 2026-10-06 |
-| 상태 | **Phase 0~2 완료, Phase 3 은 사람 teleop 확인 대기** (2026-10-23). 결과·결정은 [§8 진행 기록](#8-진행-기록) |
+| 상태 | **Phase 0~3 완료, Phase 4 진행 중** — 0·1번(스크립트·학습 설정) 끝, 시연 녹화(사람) 대기 (2026-10-26). 결과·결정은 [§8 진행 기록](#8-진행-기록) |
 | 결정 | **모노레포 + 설정 전환.** 브랜치도 별도 저장소도 아니다 |
 | 기준선 | Panda `PandaPlaceCubeKeyboard-v0` — 33,123판 / 802,000스텝 / 40.9시간, 마지막 200판 100% 성공 |
 
@@ -408,6 +408,7 @@ m.camera("front"); m.camera("handcam_rgb")
 ### Phase 4 — 학습 배관
 
 0. **먼저 고칠 것** (2026-10-23, Phase 3 까지 진행하며 확인. 안 고치면 아래 명령이 그대로는 안 돈다)
+   — ✅ 2026-10-26 처리. 아래 세 항목 + 목록에 없던 `train.sh actor --window` 고정까지. §8 참조
    - `scripts/record.sh` — 설정이 `configs/env_config_panda_place_record.json` 으로 고정이고, `--window` 도
      `PandaPlaceCubeKeyboardWindow-v0` 로 고정이다. `teleop.sh` 에 한 것과 같이 `CFG=` 를 받게 하고,
      `configs/env_config_ur5e_place_record.json` 을 만든다(`env_config_ur5e_place_teleop.json` 과 같은 차이: 태스크·상태 16·dataset 경로)
@@ -426,9 +427,12 @@ m.camera("front"); m.camera("handcam_rgb")
    UR5e 도 같은 규모(성공 30~40판)를 목표로 한다
 
 ```bash
-bash scripts/record.sh ur5e_01                   # 세션별로 여러 번
-python3 scripts/merge_demos.py --success-only    # 성공판만 병합
-python3 scripts/update_dataset_stats.py --repo_id ... --root ... --train_config ...
+source scripts/env.sh                            # python = 프로젝트 venv (시스템 python3 에는 lerobot 이 없다)
+export CFG=configs/env_config_ur5e_place_record.json
+bash scripts/record.sh 01                        # -> data/ur5e_place_cube_demo_01 (10판). 02, 03 ... 로 여러 세션
+python scripts/merge_demos.py --glob 'data/ur5e_place_cube_demo_*' --out data/ur5e_place_cube_demo --success-only
+python scripts/update_dataset_stats.py --repo_id local/ur5e_place_cube_demo --root data/ur5e_place_cube_demo \
+    --train_config configs/train_config_ur5e_place.json configs/train_config_ur5e_smoke.json
 ```
 
 3. 스모크 → 본 학습
@@ -777,3 +781,24 @@ fluxbox + 포커스된 xterm(VNC 와 같은 조건) 둘 다.
 확인할 것: ① 블록을 집어 목표 패드에 올릴 수 있다(완료 기준) ② 작업 범위 끝 — 앞 x 0.6, 좌우 ±0.3,
 높이 0.5, 베이스 쪽 x 0.25 — 에서 홱 튀지 않는다 ③ 40초 안에 여유 있게 끝난다 ④ 20 fps 조작이 부드럽다.
 튀는 곳이 있으면 `_CARTESIAN_BOUNDS` 에서 그 영역을 잘라내고 패치 `0007` 을 다시 뜬다.
+
+### 2026-10-26 — Phase 4 의 0번(먼저 고칠 것)과 1번(학습 설정)
+
+사람이 Phase 3 teleop 을 확인했다(블록을 집어 패드에 올림). 그다음인 시연 녹화를 하려고 보니 0번이 그대로였다.
+그대로 `bash scripts/record.sh` 를 치면 **Panda 시연이 녹화**되고, 통계 스크립트는 16차원에서 멈춘다.
+
+| 파일 | 바꾼 것 | 확인 |
+| --- | --- | --- |
+| `scripts/record.sh` | `CFG=` 를 받는다(teleop.sh 와 같은 방식). `--window` 태스크와 배치 폴더(`<dataset.root>_NN`)를 설정에서 정한다. Panda 기본 설정은 예전 이름 `data/place_demo_NN` 그대로 | UR5e 목록 "(아직 없음)", Panda 목록은 기존 `place_demo_01·02` 그대로 |
+| `scripts/train.sh` | **`actor --window` 가 `PandaPlaceCubeKeyboardWindow-v0` 로 박혀 있었다** — 0번 목록에 없던 함정. UR5e 설정에 `--window` 를 주면 Panda 환경이 뜬다(상태 18 vs 16). 설정의 태스크를 따르게 했다 | UR5e → `UR5ePlaceCubeKeyboardWindow-v0`, 03 → `PandaPlaceCubeKeyboardWindow-v0` |
+| `scripts/update_dataset_stats.py` | 관절 수를 `n = (차원 − 4) / 2` 로 구한다. `--tcp_bounds` 를 안 주면 학습 설정 태스크의 환경 코드 `_CARTESIAN_BOUNDS` 를 읽는다(숫자를 두 군데 두지 않는다). `--train_config` 여러 개. **시연과 설정의 상태 차원이 다르면 멈춘다** | Panda 시연 `--dry_run`: 통계 18줄이 **예전 스크립트와 완전히 같다**. Panda 시연 + UR5e 설정 → `[멈춤] ... 16, 시연은 18` |
+| `scripts/check_dataset.py` | 표시 문구만 차원에 맞게 (`STATE (18)`, `qpos[7]`) | Panda 데이터로 실행 |
+| `configs/env_config_ur5e_place_record.json` (새) | UR5e teleop 설정 + `mode: record`, `num_episodes_to_record: 30` — Panda teleop→record 차이와 같다 | lerobot 파서로 읽힘 |
+| `configs/train_config_ur5e_place.json` (새) | `train_config_panda_place_gpu.json` 에서 로봇에 묶인 7칸만: 태스크, 상태 16(두 곳), home 6개, 데이터셋 2칸, 이름 `ur5e_place_01`. `online_steps` 1,000,000. 정규화 범위는 **임시로 물리 한계**(관절 한계·작업 범위) — 녹화 후 `update_dataset_stats.py` 가 덮어쓴다 | 파서 OK. 무작위 정책으로 actor 경로 20스텝: 관측 상태 `(1, 16)`, 정규화 값 [−1.0, 0.67] 유한 |
+| `configs/train_config_ur5e_smoke.json` (새) | 위 + Panda 스모크와 같은 5칸(컴파일 끔, 버퍼 5,000, 3,000 스텝, 200 마다 저장, steps 2,000). 출력 `outputs/train/ur5e_smoke` | 파서 OK |
+
+`panda_place_gpu` 와 실제로 95% 를 낸 `03_exp_b_assist` 는 이름과 `online_steps` 말고는 같은 설정이라 PRD 대로 `panda_place_gpu` 를 원본으로 썼다.
+
+**남은 것**: 시연 녹화(사람) → 병합 → 통계 → 스모크 → 본 학습. learner 가 "새 전이가 없으면 멈추는" 장치는 아직 없다 —
+actor 가 `online_steps` 를 다 채우고 끝나면 `bash scripts/train.sh stop` 으로 learner 도 끝내야 한다
+(10/14 Panda 에서 actor 종료 뒤 learner 가 45시간 혼자 돌며 정책이 무너졌다: 500000 19/20 → 802000 0/8).

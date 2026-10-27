@@ -7,6 +7,11 @@
 #   bash scripts/record.sh --window 04  # MuJoCo 창도 같이 띄운다 (VNC 6080)
 #   bash scripts/record.sh              # 인자 없이 = 지금까지 녹화한 배치 목록
 #
+# 다른 로봇은 CFG 로 녹화 설정을 바꾼다. 배치 폴더는 설정의 dataset.root 뒤에 _번호 를 붙인다:
+#   CFG=configs/env_config_ur5e_place_record.json bash scripts/record.sh 01
+#       -> data/ur5e_place_cube_demo_01   (병합하면 data/ur5e_place_cube_demo)
+#   (Panda 기본 설정만 예전 이름 data/place_demo_NN 을 그대로 쓴다)
+#
 # 같은 폴더에 이어서 녹화할 수 없다(FileExistsError). 그래서 배치마다 번호를 바꾼다.
 # 다 모은 뒤 scripts/merge_demos.py 로 합친다.
 #
@@ -31,11 +36,18 @@ if [ "${HIL_SKIP_PREFLIGHT:-}" != "1" ] && [ -x scripts/preflight.sh ]; then
   fi
 fi
 
+# 녹화 설정. 다른 로봇은 CFG 로 바꾼다 (teleop.sh 와 같은 방식).
+CFG="${CFG:-configs/env_config_panda_place_record.json}"
+read -r TASK DROOT < <(python -c "import json,sys; c=json.load(open(sys.argv[1])); print(c['env']['task'], c['dataset']['root'])" "$CFG") || exit 1
+# 배치 폴더 접두어. Panda 기본 설정은 예전부터 쓰던 data/place_demo_NN 을 유지한다.
+if [ "$DROOT" = "data/panda_place_cube_demo" ]; then PREFIX="data/place_demo"; else PREFIX="$DROOT"; fi
+
 # --window 를 앞에 붙이면 MuJoCo 창도 같이 띄운다. 속도 차이는 거의 없다(23 -> 28 ms/스텝).
+# 창 태스크는 설정의 태스크를 따른다 (예전에는 Panda 로 박혀 있었다).
 TASK_OVERRIDE=()
 if [ "${1:-}" = "--window" ]; then
   shift
-  TASK_OVERRIDE=(--env.task=PandaPlaceCubeKeyboardWindow-v0)
+  TASK_OVERRIDE=(--env.task="${TASK/Keyboard-v0/KeyboardWindow-v0}")
 fi
 
 BATCH="${1:-}"
@@ -47,7 +59,7 @@ if [ -z "$BATCH" ]; then
   echo
   echo "지금까지 녹화한 배치:"
   found=0
-  for d in data/place_demo_*; do
+  for d in "${PREFIX}"_*; do
     [ -d "$d" ] || continue
     found=1
     if [ -f "$d/meta/info.json" ]; then
@@ -68,7 +80,7 @@ PY
   exit 1
 fi
 
-ROOT="data/place_demo_${BATCH}"
+ROOT="${PREFIX}_${BATCH}"
 if [ -e "$ROOT" ]; then
   echo "[record] $ROOT 이 이미 있다. 다른 번호를 쓰거나, 버릴 것이면 지우고 다시 해라:"
   echo "  rm -rf $ROOT"
@@ -86,6 +98,7 @@ if [ -n "${others// /}" ]; then
 fi
 
 cat <<MSG
+[record] $TASK  ($CFG)
 [record] $ROOT 에 ${N} 개를 녹화한다. 20 fps, 한 에피소드 최대 40초.
   화면:  bash scripts/dashboard.sh  ->  http://localhost:8088/  (화면을 클릭하면 거기서 조작된다)
   순서:  Space(조종권) -> 방향키로 블록 위 -> 왼쪽Ctrl 내리기 -> g 잡기
@@ -96,9 +109,9 @@ cat <<MSG
 
 MSG
 exec python -u -m lerobot.rl.gym_manipulator \
-  --config_path=configs/env_config_panda_place_record.json \
+  --config_path="$CFG" \
   "${TASK_OVERRIDE[@]}" \
   --dataset.root="$ROOT" \
-  --dataset.repo_id="local/place_demo_${BATCH}" \
+  --dataset.repo_id="local/$(basename "$PREFIX")_${BATCH}" \
   --dataset.num_episodes_to_record="$N" \
   "${@:3}"

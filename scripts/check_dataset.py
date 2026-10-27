@@ -44,7 +44,7 @@ print("shape:", act.shape, "min:", act.min(0).round(3).tolist(), "max:", act.max
 print("gripper column unique values:", np.unique(act[:, 3]).tolist(), "(gym_hil: 0=열기(놓기), 1=유지, 2=닫기(잡기). 코드 변수명 open/close 와 실제 동작이 반대다)")
 print("xyz unique values (first 10):", np.unique(act[:, :3])[:10].tolist())
 
-print("\n== STATE (18) vs train_config dataset_stats ==")
+print(f"\n== STATE ({st.shape[1]}) vs train_config dataset_stats ==")
 print("state min:", st.min(0).round(3).tolist()); print("state max:", st.max(0).round(3).tolist())
 try:
     cfg = json.load(open(args.train_config)); cs = cfg["policy"]["dataset_stats"]["observation.state"]
@@ -54,7 +54,8 @@ try:
     print("config action min/max:", cfg["policy"]["dataset_stats"]["action"], "| policy output shape:", cfg["policy"]["output_features"]["action"]["shape"], "| num_discrete_actions:", cfg["policy"]["num_discrete_actions"])
 except FileNotFoundError:
     print("(train_config not found, skip)")
-print("state layout (gym_hil FrankaGymEnv.get_robot_state): qpos[7] | qvel[7] | gripper_ctrl[1] (0~255) | tcp_pos[3]")
+_n = (st.shape[1] - 4) // 2
+print(f"state layout (gym_hil FrankaGymEnv.get_robot_state): qpos[{_n}] | qvel[{_n}] | gripper_ctrl[1] (0~255) | tcp_pos[3]")
 
 print("\n== SAMPLE LOADING (video decode) ==")
 s = ds[0]

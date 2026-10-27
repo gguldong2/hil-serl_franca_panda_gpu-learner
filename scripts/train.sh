@@ -248,7 +248,13 @@ if [ "${HIL_SKIP_PREFLIGHT:-}" != "1" ] && [ -x scripts/preflight.sh ]; then
   fi
 fi
     WINDOW=()
-    if [ "${1:-}" = "--window" ]; then shift; WINDOW=(--env.task=PandaPlaceCubeKeyboardWindow-v0); fi
+    if [ "${1:-}" = "--window" ]; then
+      shift
+      # 창 태스크는 설정의 태스크를 따른다 (UR5ePlaceCubeKeyboard-v0 -> UR5ePlaceCubeKeyboardWindow-v0).
+      # 예전에는 Panda 창으로 박혀 있어서 UR5e 설정에 --window 를 주면 Panda 환경이 떴다(상태 18 vs 16).
+      _task="$(python -c "import json,sys;print(json.load(open(sys.argv[1]))['env']['task'])" "$CFG")" || exit 1
+      WINDOW=(--env.task="${_task/Keyboard-v0/KeyboardWindow-v0}")
+    fi
     export DISPLAY="${DISPLAY:-:1}"
     export MUJOCO_GL="${HIL_ACTOR_GL:-egl}"
     # 화면 HUD 가 이 런의 기록을 이어받도록 런 폴더를 알려 준다.
