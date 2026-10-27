@@ -72,13 +72,14 @@ bash scripts/server22/05_nvidia_gl.sh 2>&1 | tee outputs/server_nvidia_gl.log
 #   커널 드라이버와 같은 버전 런파일을 받아 압축만 푼다(설치 아님, 약 340 MB 다운로드 → nvidia-gl/ 127 MB).
 #   호스트 드라이버가 바뀌면 다시 실행해야 한다.
 
-# 2-3. 저장소(고정 커밋) + venv + torch + gym-hil + lerobot[hilserl] + 패치 10개 + 버전 기록
+# 2-3. 저장소(고정 커밋) + venv + torch + gym-hil + lerobot[hilserl] + 패치 13개 + UR5e 메시 + 버전 기록
 #   torch 종류(cu126/cu128)는 GPU 의 compute capability 를 보고 알아서 고른다.
 #   고른 뒤 실제 GPU 커널을 돌려 확인하고, 실패하면 반대쪽으로 한 번 더 설치한다.
 #   둘 다 안 되면 멈춘다(예전에는 cuda=False 여도 "완료"로 끝났다). 자세한 것은 docs/gpu.md §6-1.
 bash scripts/server22/02_setup_project.sh 2>&1 | tee outputs/server_setup_project.log
 #   마지막 줄이 "[02] OK torch=2.11.0+cu126 cuda=True mujoco=3.8.1 lerobot=0.6.1" 이어야 한다.
-#   패치는 lerobot 6개 + gym-hil 4개. 적용 결과를 대조하는 방법은 docs/patches/README.md.
+#   패치는 lerobot 6개 + gym-hil 7개, 그리고 패치 밖의 UR5e 메시(Menagerie 고정 커밋).
+#   적용 결과를 대조하는 방법은 docs/patches/README.md.
 
 # 2-4. 실행 검증: CUDA 계산 → EGL 렌더러(GL_RENDERER 에 NVIDIA 가 찍혀야 GPU) → 데이터셋 → 환경 → 뷰어 환경(Xvfb) → 설정 파싱
 bash scripts/server22/03_verify.sh gpu 2>&1 | tee outputs/server_verify.log

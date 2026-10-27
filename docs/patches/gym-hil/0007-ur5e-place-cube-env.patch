@@ -1,0 +1,442 @@
+diff --git a/gym_hil/__init__.py b/gym_hil/__init__.py
+index cd7c4bf..5105178 100644
+--- a/gym_hil/__init__.py
++++ b/gym_hil/__init__.py
+@@ -198,3 +198,69 @@ register(
+         "use_gamepad": True,
+     },
+ )
++
++
++# ---------------------------------------------------------------------------
++# UR5ePlaceCube: PandaPlaceCube 와 같은 태스크를 UR5e(6축)로. 위 Panda 블록을 그대로 베꼈다.
++# 상태 차원이 16 이라(Panda 18) Panda 시연·정책과 섞어 쓸 수 없다.
++# ---------------------------------------------------------------------------
++
++register(
++    id="gym_hil/UR5ePlaceCubeBase-v0",
++    entry_point="gym_hil.envs:UR5ePlaceCubeGymEnv",
++    max_episode_steps=2000,
++)
++
++register(
++    id="gym_hil/UR5ePlaceCubeViewer-v0",
++    entry_point=lambda **kwargs: PassiveViewerWrapper(gym.make("gym_hil/UR5ePlaceCubeBase-v0", **kwargs)),
++    max_episode_steps=2000,
++)
++
++register(
++    id="gym_hil/UR5ePlaceCube-v0",
++    entry_point="gym_hil.wrappers.factory:make_env",
++    max_episode_steps=2000,
++    kwargs={
++        "env_id": "gym_hil/UR5ePlaceCubeBase-v0",
++        "use_inputs_control": False,
++        "gripper_penalty": -0.05,
++    },
++)
++
++register(
++    id="gym_hil/UR5ePlaceCubeKeyboard-v0",
++    entry_point="gym_hil.wrappers.factory:make_env",
++    max_episode_steps=2000,
++    kwargs={
++        "env_id": "gym_hil/UR5ePlaceCubeBase-v0",
++        "use_viewer": False,
++        "gripper_penalty": -0.05,
++        "use_inputs_control": True,
++    },
++)
++
++register(
++    id="gym_hil/UR5ePlaceCubeKeyboardWindow-v0",
++    entry_point="gym_hil.wrappers.factory:make_env",
++    max_episode_steps=2000,
++    kwargs={
++        "env_id": "gym_hil/UR5ePlaceCubeBase-v0",
++        "use_viewer": True,
++        "gripper_penalty": -0.05,
++        "use_inputs_control": True,
++    },
++)
++
++register(
++    id="gym_hil/UR5ePlaceCubeGamepad-v0",
++    entry_point="gym_hil.wrappers.factory:make_env",
++    max_episode_steps=2000,
++    kwargs={
++        "env_id": "gym_hil/UR5ePlaceCubeBase-v0",
++        "use_viewer": True,
++        "gripper_penalty": -0.05,
++        "use_inputs_control": True,
++        "use_gamepad": True,
++    },
++)
+diff --git a/gym_hil/envs/__init__.py b/gym_hil/envs/__init__.py
+index 47dcf29..47f3fb7 100644
+--- a/gym_hil/envs/__init__.py
++++ b/gym_hil/envs/__init__.py
+@@ -17,5 +17,6 @@
+ from gym_hil.envs.panda_arrange_boxes_gym_env import PandaArrangeBoxesGymEnv
+ from gym_hil.envs.panda_pick_gym_env import PandaPickCubeGymEnv
+ from gym_hil.envs.panda_place_gym_env import PandaPlaceCubeGymEnv
++from gym_hil.envs.ur5e_place_gym_env import UR5ePlaceCubeGymEnv
+ 
+-__all__ = ["PandaPickCubeGymEnv", "PandaArrangeBoxesGymEnv", "PandaPlaceCubeGymEnv"]
++__all__ = ["PandaPickCubeGymEnv", "PandaArrangeBoxesGymEnv", "PandaPlaceCubeGymEnv", "UR5ePlaceCubeGymEnv"]
+diff --git a/gym_hil/envs/ur5e_place_gym_env.py b/gym_hil/envs/ur5e_place_gym_env.py
+new file mode 100644
+index 0000000..087ab18
+--- /dev/null
++++ b/gym_hil/envs/ur5e_place_gym_env.py
+@@ -0,0 +1,299 @@
++#!/usr/bin/env python
++
++# Copyright 2024 The HuggingFace Inc. team. All rights reserved.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++"""UR5e 로 블록 하나를 집어서 바닥의 목표 패드 위에 내려놓는 태스크.
++
++panda_place_gym_env.py 를 복사한 것이다. 태스크(보상·성공조건·블록/패드 배치)는 한 글자도
++바꾸지 않았고, 로봇에 묶인 것만 다르다:
++  - 장면 place_cube_scene_ur5e.xml (place_cube_scene.xml 에서 include 만 ur5e.xml)
++  - _UR5E_HOME: pinch 가 Panda home 과 같은 자리·자세(0.4903, 0, 0.0776, 수직 하향)에 오는 6축 자세
++  - _CARTESIAN_BOUNDS: UR5e 작업 범위
++  - opspace nullspace_stiffness=0: 6축이라 여유자유도가 없다 (docs/ur5e-refactoring-prd.md §6.1)
++
++팔이 6축이라 상태(agent_pos)가 18 이 아니라 16 이다 — qpos 6 + qvel 6 + gripper 1 + tcp 3.
++Panda 시연·정책 가중치는 쓸 수 없다.
++"""
++
++from pathlib import Path
++from typing import Any, Dict, Literal, Tuple
++
++import mujoco
++import numpy as np
++from gymnasium import spaces
++
++from gym_hil.mujoco_gym_env import MAX_GRIPPER_COMMAND, FrankaGymEnv, GymRenderingSpec
++
++# 팔꿈치 위·손목 아래의 표준 UR 자세. joint5=-pi/2 라 손목 특이점(joint5=0)에서 가장 멀다.
++# joint1 이 0 이 아닌 것은 어깨 옆 오프셋(0.138-0.131+0.127 m) 때문에 pinch 를 y=0 에 두려면 돌려야 해서다.
++_UR5E_HOME = np.asarray((-0.2768, -1.3958, 2.1044, -2.2794, -1.5708, -0.2768))
++# Panda 와 같되 x 하한만 0.2 -> 0.25. x=0.2 의 바닥 근처는 팔을 너무 접어서 전완·손목이 어깨에 닿는다.
++_CARTESIAN_BOUNDS = np.asarray([[0.25, -0.3, 0], [0.6, 0.3, 0.5]])
++# 6축은 여유자유도가 없어 null space 항이 이론상 0 이다. 특이점 근처에서 수치 잡음만 넣으므로 끈다.
++_OPSPACE_KWARGS = {"nullspace_stiffness": 0.0}
++# 블록을 뿌리는 범위 (x, y). PandaPickCube 와 같은 값.
++_SAMPLING_BOUNDS = np.asarray([[0.3, -0.15], [0.5, 0.15]])
++# 2단계에서 목표 패드도 랜덤으로 돌릴 때 쓰는 범위.
++_GOAL_SAMPLING_BOUNDS = np.asarray([[0.38, -0.15], [0.55, 0.15]])
++
++
++class UR5ePlaceCubeGymEnv(FrankaGymEnv):
++    """UR5e 로봇이 블록을 집어 목표 패드 위에 내려놓는 환경."""
++
++    def __init__(
++        self,
++        seed: int = 0,
++        control_dt: float = 0.1,
++        physics_dt: float = 0.002,
++        render_spec: GymRenderingSpec = GymRenderingSpec(),  # noqa: B008
++        render_mode: Literal["rgb_array", "human"] = "rgb_array",
++        image_obs: bool = False,
++        reward_type: str = "sparse",
++        random_block_position: bool = True,
++        random_goal_position: bool = False,
++        success_radius: float = 0.03,
++        min_block_goal_dist: float = 0.08,
++        lift_threshold: float = 0.03,
++        require_lift: bool = True,
++    ):
++        self.reward_type = reward_type
++
++        super().__init__(
++            xml_path=Path(__file__).parent.parent / "assets" / "place_cube_scene_ur5e.xml",
++            seed=seed,
++            control_dt=control_dt,
++            physics_dt=physics_dt,
++            render_spec=render_spec,
++            render_mode=render_mode,
++            image_obs=image_obs,
++            home_position=_UR5E_HOME,
++            cartesian_bounds=_CARTESIAN_BOUNDS,
++            opspace_kwargs=_OPSPACE_KWARGS,
++        )
++
++        # Task-specific setup
++        self._block_z = self._model.geom("block").size[2]
++        self._random_block_position = random_block_position
++        self._random_goal_position = random_goal_position
++        self._success_radius = success_radius
++        self._min_block_goal_dist = min_block_goal_dist
++        self._lift_threshold = lift_threshold
++        self._require_lift = require_lift
++
++        self._goal_body_id = self._model.body("goal").id
++        self._goal_pos = self._model.body_pos[self._goal_body_id].copy()
++        self._z_init = self._block_z
++        self._lifted = False
++
++        agent_dim = self.get_robot_state().shape[0]
++        agent_box = spaces.Box(-np.inf, np.inf, (agent_dim,), dtype=np.float32)
++        # 상태 전용 모드에서는 블록 위치(3) + 목표 위치(3) 을 같이 준다.
++        env_box = spaces.Box(-np.inf, np.inf, (6,), dtype=np.float32)
++
++        if self.image_obs:
++            self.observation_space = spaces.Dict(
++                {
++                    "pixels": spaces.Dict(
++                        {
++                            "front": spaces.Box(
++                                0,
++                                255,
++                                (self._render_specs.height, self._render_specs.width, 3),
++                                dtype=np.uint8,
++                            ),
++                            "wrist": spaces.Box(
++                                0,
++                                255,
++                                (self._render_specs.height, self._render_specs.width, 3),
++                                dtype=np.uint8,
++                            ),
++                        }
++                    ),
++                    "agent_pos": agent_box,
++                }
++            )
++        else:
++            self.observation_space = spaces.Dict(
++                {
++                    "agent_pos": agent_box,
++                    "environment_state": env_box,
++                }
++            )
++
++    # ------------------------------------------------------------------ reset
++
++    def reset(self, seed=None, **kwargs) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
++        """환경을 초기화한다."""
++        super().reset(seed=seed)
++
++        mujoco.mj_resetData(self._model, self._data)
++        self.reset_robot()
++
++        # 목표 패드 위치 결정. 정적 body 라 model.body_pos 를 직접 고친다.
++        if self._random_goal_position:
++            goal_xy = self.np_random.uniform(*_GOAL_SAMPLING_BOUNDS)
++            self._model.body_pos[self._goal_body_id][:2] = goal_xy
++        self._goal_pos = self._model.body_pos[self._goal_body_id].copy()
++
++        # 블록 위치 결정. 목표 패드와 너무 가까우면 다시 뽑는다.
++        if self._random_block_position:
++            block_xy = self._sample_block_xy()
++        else:
++            block_xy = np.asarray([0.3, 0.0])
++        self._data.jnt("block").qpos[:3] = (*block_xy, self._block_z)
++        self._data.jnt("block").qpos[3:] = (1.0, 0.0, 0.0, 0.0)
++        mujoco.mj_forward(self._model, self._data)
++
++        self._z_init = self._data.sensor("block_pos").data[2]
++        self._lifted = False
++
++        obs = self._compute_observation()
++        return obs, {}
++
++    def _sample_block_xy(self) -> np.ndarray:
++        goal_xy = self._goal_pos[:2]
++        block_xy = self.np_random.uniform(*_SAMPLING_BOUNDS)
++        for _ in range(200):
++            if np.linalg.norm(block_xy - goal_xy) >= self._min_block_goal_dist:
++                return block_xy
++            block_xy = self.np_random.uniform(*_SAMPLING_BOUNDS)
++        # 200 번 안에 못 뽑으면 목표 반대쪽으로 밀어서 최소 거리를 강제로 맞춘다.
++        direction = block_xy - goal_xy
++        norm = np.linalg.norm(direction)
++        direction = np.asarray([1.0, 0.0]) if norm < 1e-6 else direction / norm
++        block_xy = goal_xy + direction * self._min_block_goal_dist
++        return np.clip(block_xy, _SAMPLING_BOUNDS[0], _SAMPLING_BOUNDS[1])
++
++    # ------------------------------------------------------------------- step
++
++    def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
++        """환경을 한 스텝 진행한다."""
++        self.apply_action(action)
++
++        # 한 번이라도 들어올렸는지 래치로 기록한다 (밀어서 옮기는 편법 방지).
++        block_pos = self._data.sensor("block_pos").data
++        if block_pos[2] - self._z_init > self._lift_threshold:
++            self._lifted = True
++
++        obs = self._compute_observation()
++        success = self._is_success()
++
++        if self.reward_type == "dense":
++            rew = self._dense_reward(success)
++        else:
++            rew = float(success)
++
++        exceeded_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - 0.10)) or np.any(
++            block_pos[:2] > (_SAMPLING_BOUNDS[1] + 0.10)
++        )
++
++        terminated = bool(success or exceeded_bounds)
++
++        return obs, rew, terminated, False, {"succeed": success}
++
++    # ------------------------------------------------------------ observation
++
++    def _compute_observation(self) -> dict:
++        """현재 관측을 만든다."""
++        robot_state = self.get_robot_state().astype(np.float32)
++
++        if self.image_obs:
++            front_view, wrist_view = self.render()
++            return {
++                "pixels": {"front": front_view, "wrist": wrist_view},
++                "agent_pos": robot_state,
++            }
++
++        block_pos = self._data.sensor("block_pos").data.astype(np.float32)
++        goal_pos = self._goal_pos.astype(np.float32)
++        return {
++            "agent_pos": robot_state,
++            "environment_state": np.concatenate([block_pos, goal_pos]).astype(np.float32),
++        }
++
++    # ----------------------------------------------------------- reward/success
++
++    def is_gripper_open(self) -> bool:
++        """그리퍼가 열려 있는지. ctrl 0 = 완전히 열림, 255 = 완전히 닫힘."""
++        return bool(self._data.ctrl[self._gripper_ctrl_id] < 0.2 * MAX_GRIPPER_COMMAND)
++
++    def block_goal_distance(self) -> float:
++        """블록과 목표 패드 사이의 수평(xy) 거리."""
++        block_pos = self._data.sensor("block_pos").data
++        return float(np.linalg.norm(block_pos[:2] - self._goal_pos[:2]))
++
++    def is_block_resting(self) -> bool:
++        """블록이 공중에 떠 있지 않고 바닥에 놓여 있는지."""
++        block_pos = self._data.sensor("block_pos").data
++        return bool(block_pos[2] < self._z_init + 0.01)
++
++    def _is_success(self) -> bool:
++        """성공 판정: 목표 안에 + 바닥에 놓임 + 그리퍼 열림 (+ 한 번은 들어올렸음)."""
++        if self.block_goal_distance() >= self._success_radius:
++            return False
++        if not self.is_block_resting():
++            return False
++        if not self.is_gripper_open():
++            return False
++        if self._require_lift and not self._lifted:
++            return False
++        return True
++
++    def _dense_reward(self, success: bool) -> float:
++        """0 ~ 1 사이의 조밀 보상. 잡기 전/후로 단계를 나눈다."""
++        if success:
++            return 1.0
++
++        block_pos = self._data.sensor("block_pos").data
++        tcp_pos = self._data.sensor("2f85/pinch_pos").data
++
++        if not self._lifted:
++            # 1단계: 블록에 다가가서 들어올리기
++            r_reach = float(np.exp(-20.0 * np.linalg.norm(block_pos - tcp_pos)))
++            r_lift = float(np.clip((block_pos[2] - self._z_init) / self._lift_threshold, 0.0, 1.0))
++            return 0.3 * r_reach + 0.2 * r_lift
++
++        # 2단계: 목표 위로 옮겨서 내려놓기
++        r_place = float(np.exp(-10.0 * self.block_goal_distance()))
++        r_release = 0.1 if (self.is_block_resting() and self.is_gripper_open()) else 0.0
++        return 0.5 + 0.4 * r_place + r_release
++
++    # ------------------------------------------------------------ diagnostics
++
++    def get_task_diagnostics(self) -> Dict[str, Any]:
++        """검증·디버깅용. info 를 오염시키지 않으려고 따로 뺀다."""
++        block_pos = self._data.sensor("block_pos").data
++        return {
++            "block_pos": np.round(block_pos, 4).tolist(),
++            "goal_pos": np.round(self._goal_pos, 4).tolist(),
++            "dist_xy": round(self.block_goal_distance(), 4),
++            "in_target": self.block_goal_distance() < self._success_radius,
++            "resting": self.is_block_resting(),
++            "gripper_open": self.is_gripper_open(),
++            "gripper_ctrl": round(float(self._data.ctrl[self._gripper_ctrl_id]), 1),
++            "lifted": self._lifted,
++            "success": self._is_success(),
++        }
++
++
++if __name__ == "__main__":
++    from gym_hil import PassiveViewerWrapper
++
++    env = UR5ePlaceCubeGymEnv(render_mode="human")
++    env = PassiveViewerWrapper(env)
++    env.reset()
++    for _ in range(100):
++        env.step(np.random.uniform(-1, 1, 7))
++    env.close()
+diff --git a/gym_hil/mujoco_gym_env.py b/gym_hil/mujoco_gym_env.py
+index d529468..5f1bdae 100644
+--- a/gym_hil/mujoco_gym_env.py
++++ b/gym_hil/mujoco_gym_env.py
+@@ -128,6 +128,7 @@ class FrankaGymEnv(MujocoGymEnv):
+         image_obs: bool = False,
+         home_position: np.ndarray = np.asarray((0, -0.785, 0, -2.35, 0, 1.57, np.pi / 4)),  # noqa: B008
+         cartesian_bounds: np.ndarray = np.asarray([[0.2, -0.3, 0], [0.6, 0.3, 0.5]]),  # noqa: B008
++        opspace_kwargs: dict | None = None,
+     ):
+         if xml_path is None:
+             xml_path = Path(__file__).parent.parent / "gym_hil" / "assets" / "scene.xml"
+@@ -142,6 +143,9 @@ class FrankaGymEnv(MujocoGymEnv):
+ 
+         self._home_position = home_position
+         self._cartesian_bounds = cartesian_bounds
++        # 로봇별 opspace 게인 (pos_gains, ori_gains, damping_ratio, nullspace_stiffness ...).
++        # 비워 두면 opspace() 기본값 — Panda 는 이것으로 학습했다.
++        self._opspace_kwargs = dict(opspace_kwargs or {})
+ 
+         self.metadata = {
+             "render_modes": ["human", "rgb_array"],
+@@ -270,6 +274,7 @@ class FrankaGymEnv(MujocoGymEnv):
+                 ori=self._data.mocap_quat[0],
+                 joint=self._home_position,
+                 gravity_comp=True,
++                **self._opspace_kwargs,
+             )
+             self._data.ctrl[self._arm_ctrl_ids] = tau
+             mujoco.mj_step(self._model, self._data)
+diff --git a/gym_hil/wrappers/factory.py b/gym_hil/wrappers/factory.py
+index 79ecaa1..1d467ae 100644
+--- a/gym_hil/wrappers/factory.py
++++ b/gym_hil/wrappers/factory.py
+@@ -7,6 +7,7 @@ import gymnasium as gym
+ from gym_hil.envs.panda_arrange_boxes_gym_env import PandaArrangeBoxesGymEnv
+ from gym_hil.envs.panda_pick_gym_env import PandaPickCubeGymEnv
+ from gym_hil.envs.panda_place_gym_env import PandaPlaceCubeGymEnv
++from gym_hil.envs.ur5e_place_gym_env import UR5ePlaceCubeGymEnv
+ from gym_hil.wrappers.hil_wrappers import (
+     DEFAULT_EE_STEP_SIZE,
+     EEActionWrapper,
+@@ -131,6 +132,8 @@ def make_env(
+         env = PandaArrangeBoxesGymEnv(**kwargs)
+     elif env_id == "gym_hil/PandaPlaceCubeBase-v0":
+         env = PandaPlaceCubeGymEnv(**kwargs)
++    elif env_id == "gym_hil/UR5ePlaceCubeBase-v0":
++        env = UR5ePlaceCubeGymEnv(**kwargs)
+     else:
+         raise ValueError(f"Environment ID {env_id} not supported")
+ 

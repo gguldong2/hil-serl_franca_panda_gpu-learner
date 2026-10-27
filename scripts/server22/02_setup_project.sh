@@ -109,18 +109,34 @@ pip install -e "third_party/lerobot[hilserl]"
 pip check
 
 echo "[02] 호환성 패치 (docs/patches)"
+series_applied() {   # $1=저장소  $2..=패치(절대경로). 고정 커밋에 전부 적용한 결과와 지금 파일이 같은가
+  local repo="$1" T f p rc=0; shift
+  T=$(mktemp -d)
+  git clone -q --shared --no-checkout "$repo" "$T/r" && git -C "$T/r" checkout -q "$(git -C "$repo" rev-parse HEAD)" || rc=1
+  for p in "$@"; do [ $rc = 0 ] && { git -C "$T/r" apply "$p" 2>/dev/null || rc=1; }; done
+  if [ $rc = 0 ]; then
+    for f in $(sed -n 's|^+++ b/||p' "$@" | sort -u); do cmp -s "$T/r/$f" "$repo/$f" || { rc=1; break; }; done
+  fi
+  rm -rf "$T"; return $rc
+}
 apply_patches() {   # $1=저장소 디렉터리  $2=패치 glob
-  local repo="$1" glob="$2" p
+  local repo="$1" glob="$2" p all=()
+  for p in $glob; do [ -e "$p" ] && all+=("$ROOT/$p"); done
   for p in $glob; do
     [ -e "$p" ] || continue
     if git -C "$repo" apply --check "$ROOT/$p" 2>/dev/null; then git -C "$repo" apply "$ROOT/$p"; echo "  적용: $p"
     elif git -C "$repo" apply --reverse --check "$ROOT/$p" 2>/dev/null; then echo "  이미 적용됨: $p"
+    # 뒤 패치가 같은 파일을 또 고치면(gym-hil 0007 이 0002·0005 위에 얹힌다) 앞 패치는 혼자서는
+    # 역적용 검사가 안 된다. 그때는 패치 전체를 고정 커밋에 적용한 결과와 지금 파일을 비교한다.
+    elif series_applied "$repo" "${all[@]}"; then echo "  이미 적용됨: $p 부터 끝까지 (패치 전체 결과와 파일이 같다)"; return 0
     else echo "  !! 적용 실패: $p ($repo 버전이 고정 커밋이 아닌지 확인)"; exit 1; fi
   done
 }
 apply_patches third_party/lerobot "docs/patches/000*.patch"
 # gym-hil 패치: 헤드리스 X11(VNC/Xvfb) 에서 종료 시 SIGSEGV 를 막는다. server22 에서 발견.
 apply_patches third_party/gym-hil "docs/patches/gym-hil/*.patch"
+# UR5e 메시(Menagerie 고정 커밋). 패치 0006 의 assets/ur5e.xml 이 참조한다.
+bash scripts/server22/fetch_ur5e_assets.sh
 
 pip freeze --exclude-editable > docs/requirements-lock.server22.txt
 EXPECT_GPU=0; [ "$FLAVOR" != cpu ] && EXPECT_GPU=1

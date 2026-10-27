@@ -6,7 +6,7 @@ Franka Panda 로 돌고 있는 HIL-SERL 큐브 놓기 태스크를 **UR5e 로도
 | | |
 | --- | --- |
 | 작성 | 2026-10-06 |
-| 상태 | **미착수.** 아래 "사전 조사" 는 코드를 직접 읽고 확인한 것이고, Phase 0~5 는 계획이다 |
+| 상태 | **Phase 0~2 완료, Phase 3 은 사람 teleop 확인 대기** (2026-10-23). 결과·결정은 [§8 진행 기록](#8-진행-기록) |
 | 결정 | **모노레포 + 설정 전환.** 브랜치도 별도 저장소도 아니다 |
 | 기준선 | Panda `PandaPlaceCubeKeyboard-v0` — 33,123판 / 802,000스텝 / 40.9시간, 마지막 200판 100% 성공 |
 
@@ -407,17 +407,27 @@ m.camera("front"); m.camera("handcam_rgb")
 
 ### Phase 4 — 학습 배관
 
+0. **먼저 고칠 것** (2026-10-23, Phase 3 까지 진행하며 확인. 안 고치면 아래 명령이 그대로는 안 돈다)
+   - `scripts/record.sh` — 설정이 `configs/env_config_panda_place_record.json` 으로 고정이고, `--window` 도
+     `PandaPlaceCubeKeyboardWindow-v0` 로 고정이다. `teleop.sh` 에 한 것과 같이 `CFG=` 를 받게 하고,
+     `configs/env_config_ur5e_place_record.json` 을 만든다(`env_config_ur5e_place_teleop.json` 과 같은 차이: 태스크·상태 16·dataset 경로)
+   - `scripts/update_dataset_stats.py` — `assert state.shape[1] == 18` 이고 관절 7개 자리(`[:7]`, `[7:14]`, `[14]`, `[15:18]`)가
+     박혀 있다. 상태 차원에서 관절 수를 구하도록(`n = (dim - 4) // 2`) 고친다. 그리고 `--tcp_bounds` 기본값이
+     Panda 작업 범위(x 0.2)이므로 UR5e 는 `--tcp_bounds 0.25,-0.3,0.0,0.6,0.3,0.5` (= `_CARTESIAN_BOUNDS`) 를 넘긴다
+   - `scripts/merge_demos.py` 는 경로를 인자로 받으므로 고칠 것 없다 (`--glob 'data/ur5e_place_cube_demo_*' --out data/ur5e_place_cube_demo`)
 1. `configs/train_config_ur5e_place.json` — `train_config_panda_place_gpu.json` 복사 후:
    - `env.task` = `UR5ePlaceCubeKeyboard-v0`
    - `job_name` / `output_dir` = `ur5e_place_01` / `outputs/train/ur5e_place_01`
    - `dataset.repo_id` / `root` = UR5e 시연
    - `policy.input_features."observation.state".shape` = `[16]`
    - `policy.dataset_stats."observation.state"` = 16개 원소 (시연 녹화 후 생성)
-2. 시연 녹화 → 병합 → 통계
+2. 시연 녹화 → 병합 → 통계. **Panda 시연은 쓸 수 없다**(상태 18 vs 16, 화면에 다른 로봇). Panda 때는 녹화 설정이
+   세션당 30판(`num_episodes_to_record`), 5세션(`data/place_demo_01..05`)에서 성공판만 병합해 **43판 · 약 1시간**이었다.
+   UR5e 도 같은 규모(성공 30~40판)를 목표로 한다
 
 ```bash
-bash scripts/record.sh ur5e_01                   # 여러 세션
-python3 scripts/merge_demos.py --success-only
+bash scripts/record.sh ur5e_01                   # 세션별로 여러 번
+python3 scripts/merge_demos.py --success-only    # 성공판만 병합
 python3 scripts/update_dataset_stats.py --repo_id ... --root ... --train_config ...
 ```
 
@@ -682,16 +692,88 @@ UR5e 는 특히 세 가지가 알려져 있다:
 | --- | --- | --- |
 | `third_party/gym-hil/gym_hil/mujoco_gym_env.py:162-165` | 1 | DOF 자동 탐지 |
 | `third_party/gym-hil/gym_hil/assets/ur5e.xml` | 2 | **신규** |
-| `third_party/gym-hil/gym_hil/assets/universal_robots_ur5e/` | 2 | **신규** (Menagerie) |
+| `third_party/gym-hil/gym_hil/assets/universal_robots_ur5e/` | 2 | **신규** (Menagerie 메시. 패치가 아니라 `fetch_ur5e_assets.sh` 가 받는다) |
 | `third_party/gym-hil/gym_hil/assets/place_cube_scene_ur5e.xml` | 2 | **신규** |
 | `third_party/gym-hil/gym_hil/envs/ur5e_place_gym_env.py` | 3 | **신규** |
 | `third_party/gym-hil/gym_hil/envs/__init__.py` | 3 | export |
 | `third_party/gym-hil/gym_hil/__init__.py` | 3 | `register(...)` |
-| `third_party/gym-hil/gym_hil/controllers/opspace.py` | 3 | 게인 (필요시) |
+| `third_party/gym-hil/gym_hil/wrappers/factory.py` | 3 | `make_env` 의 env id 분기 (처음 표에 없었다) |
+| `third_party/gym-hil/gym_hil/mujoco_gym_env.py` | 3 | `opspace_kwargs` 인자 (로봇별 opspace 게인) |
+| `third_party/gym-hil/gym_hil/controllers/opspace.py` | 3 | 게인 (필요시) — **손대지 않았다.** 기본 게인으로 Panda 와 같은 응답 |
+| `scripts/server22/fetch_ur5e_assets.sh` | 2 | **신규** — Menagerie 메시를 고정 커밋에서 받는다 |
+| `scripts/server22/02_setup_project.sh` | 2, 3 | 메시 받기 호출, 패치 재실행 판정 보강 |
+| `configs/env_config_ur5e_place_teleop.json`, `scripts/teleop.sh` | 3 | **신규** / `CFG=` |
 | `configs/train_config_ur5e_place.json` | 4 | **신규** |
 | `configs/env_config_ur5e_place_record.json` | 4 | **신규** |
+| `scripts/record.sh` | 4 | `CFG=` (Panda 설정 고정이다) |
+| `scripts/update_dataset_stats.py` | 4 | 상태 18·관절 7개 고정을 N축으로 |
 | `docs/patches/gym-hil/*.patch` | 1,2,3 | **매번 다시 뜰 것** |
 | `scripts/train.sh`, `record.sh`, `teleop.sh` | 5 | `--robot` |
 
 읽어야 할 것: `README.md`, `docs/gpu.md`, `docs/patches/README.md`,
 `docs/01_place-cube-runbook.html`(조작), `docs/02_place-cube-hil-serl-QA.html`(학습 원리).
+
+---
+
+## 8. 진행 기록
+
+### 2026-10-23 — Phase 0~3 (Phase 3 은 teleop 확인만 남음)
+
+로그·그림은 `outputs/ur5e_prd/` 에 있다(저장소에는 안 올라간다).
+
+| Phase | 결과 | 근거 |
+| --- | --- | --- |
+| 0 | ✅ `preflight.sh` 준비됨, `03_verify.sh gpu` 6/6, 스모크 체크포인트 `000200`, 패치 재현 차이 0건 | `phase0_*.log` |
+| 1 | ✅ 스모크가 Phase 0 과 같게 통과, 상태 18. 고정 시드 300스텝 롤아웃의 상태·보상·qpos 가 변경 전과 **비트 단위로 같다**. 패치 `0005` | `phase1_*.log`, `panda_fingerprint_*.npz` |
+| 2 | ✅ 이름 규약 전부, 액추에이터 6개 모두 토크 motor, home 20초 유지 드리프트 0.001 mm(토크 한계의 16%; 토크 0 이면 1초에 47 mm 처짐). ⑥ 그리퍼 쪽은 `panda.xml` 과 XML 트리 단위로 같다. 패치 `0006` | `phase2_check.log`, `phase2_panda_vs_ur5e.png` |
+| 3 | **준비 완료, 사람 확인 대기.** `UR5ePlaceCube*-v0` 6종 생성 OK(상태 16). 아래 동적 점검 통과, teleop 기동 확인, Panda 스모크 회귀 없음. 패치 `0007` | `phase3_*.log`, `phase3_hud_*.jpg` |
+
+Phase 3 동적 점검 (`phase3_dyn_check.log`, Panda 와 같은 입력으로 비교):
+
+| | Panda | UR5e |
+| --- | --- | --- |
+| 추종 — 최고속(0.25 m/s) 지연 / 정지 후 오차 / 자세 오차 | 29 mm / 0.03 mm / 1.2° | 30 mm / 0.03 mm / 1.3° |
+| 경계 12모서리 — 관절속도 / 토크 / `pinv` 전환 스텝 | **7.2 rad/s / 246% / 86** | 1.4 rad/s / 31% / 0 |
+| 스크립트로 집어 놓기 (20판) | 20/20, 중앙값 3.6초 | 20/20, 중앙값 3.7초 |
+
+Panda 는 자기 bounds 의 모서리(그리퍼 하향으로는 닿기 어려운 곳)에서 크게 튄다. 학습이 된 것은 태스크가
+작업 범위 가운데서 일어나서다. UR5e 는 경계 전체에서 그런 구간이 없었다.
+
+#### PRD 에 없던 결정
+
+| 결정 | 이유 |
+| --- | --- |
+| Menagerie(DeepMind 가 관리하는 MuJoCo 로봇 모델 모음)의 UR5e 메시 — 팔 모양을 그리는 3D 파일, OBJ 20개 · 30 MB — 는 패치에 넣지 않고 `scripts/server22/fetch_ur5e_assets.sh` 가 고정 커밋 `cda5236f` 에서 받는다. `02_setup_project.sh` 와 재현 점검이 부른다 | 우리가 쓴 것(`ur5e.xml`)만 패치로 두고 남의 원본 파일은 고정 버전에서 받는다 — lerobot·gym-hil 을 clone 하는 것과 같은 원칙(`.gitignore`). 30 MB 를 저장소에 복사해 두지 않는다 |
+| Menagerie 베이스의 z축 180° 회전을 없앴다 | home 의 `joint1` 이 2.86 대신 −0.28 이 된다. 물리는 같다 |
+| body `base` → `ur5e_base`, material `black` → `ur_black` | 2F-85 쪽 이름과 겹쳐 컴파일이 안 된다 |
+| UR5e 관절에 `damping="1"` | `panda.xml` 과 같은 값 |
+| `attachment` 는 Menagerie `attachment_site` 자리에서 플랜지 축으로 90° 더 돌림 | 이 각도는 home 의 `joint6` 값만 바꾼다(그리퍼 월드 자세는 opspace 가 고정). 90° 면 `joint6 = −joint1` |
+| `_UR5E_HOME = (−0.2768, −1.3958, 2.1044, −2.2794, −1.5708, −0.2768)` | IK 8가지 해 중 팔꿈치 위·손목 아래의 표준 UR 자세. pinch 가 Panda home 과 같은 (0.4903, 0, 0.0776)·수직 하향. `joint5=−π/2` 라 손목 특이점(0)에서 가장 멀다 |
+| `_CARTESIAN_BOUNDS = [[0.25,−0.3,0],[0.6,0.3,0.5]]` — Panda 와 x 하한만 다르다 | 격자 1287점 IK: x=0.2 의 바닥 근처에서 전완·손목이 어깨에 닿는다(5점). 나머지는 `det(Mx_inv)` ≥ 0.042 로 opspace 가 `pinv` 로 넘어가는 곳이 없다 |
+| opspace 게인은 기본값(200/200/1.0) 유지, `nullspace_stiffness=0` 만 | 같은 게인으로 추종 응답이 Panda 와 같았다(opspace 가 작업공간 관성을 상쇄하므로 이론과도 맞다). 전에는 env 가 opspace 를 기본값으로만 불러 로봇별로 다르게 줄 방법이 없었다. 그래서 공통 부모 `FrankaGymEnv` 에 `opspace_kwargs`(로봇별로 바꿀 opspace 인자 묶음)를 만들었다. Panda 는 아무것도 안 넘겨 전과 똑같다(비트 단위 확인). `nullspace_stiffness` 는 남는 관절로 팔 자세를 home 쪽으로 당기는 세기인데, 6축 UR5e 는 남는 관절이 없어 쓸 데가 없고 특이점 근처에서 잡음만 넣는다(§6.1) |
+| `mujoco_gym_env.py` 에 가드: 팔 관절이 qpos 맨 앞이 아니면 에러 | joint id 를 qpos 인덱스로 그대로 쓰는 코드라, 로봇 XML 을 장면에서 먼저 include 하지 않으면 조용히 틀린 값을 읽는다 |
+| `wrappers/factory.py` 에도 분기 추가 | §7 표에 없었지만 env id 가 하드코딩되어 있다 |
+| `02_setup_project.sh` 재실행 판정 보강 (`series_applied`) | 이 스크립트는 패치마다 "되돌려 볼 수 있으면 이미 적용됨" 으로 판정해 건너뛴다. 그런데 `0007` 이 `0002`·`0005` 가 고친 줄 바로 옆을 또 고쳐서, 다 적용된 상태에서는 `0002` 를 혼자 되돌려 볼 수 없다 → 이미 설치된 머신에서 다시 돌리면 "적용 실패" 로 멈췄다. README 는 호스트 드라이버가 바뀌면 이 스크립트를 다시 돌리라고 하므로 실제로 걸릴 일이었다. 이제 그럴 때 패치 전체를 적용한 결과와 파일을 비교해 같으면 건너뛴다(새 설치·재실행·손으로 고친 트리 세 경우 시험) |
+| `teleop.sh` 가 `CFG=` 를 받고 `--window` 도 그 태스크를 따른다 | 원래 `teleop.sh` 는 Panda 설정 고정이었다(`CFG` 를 받는 것은 `train.sh` 뿐). Phase 3 완료 기준이 `teleop.sh` 라서 UR5e 설정을 가리킬 길이 필요했다. 기본값은 그대로 Panda. `record.sh` 도 같은 처리가 필요하다(Phase 4 의 0번). `--robot` 은 Phase 5 |
+
+§5 질문에 대한 지금까지의 답: 그리퍼 0~255 는 같은 2F-85 라 그대로. `cartesian_bounds` 는 (b) env 상수로 둔다 —
+경계에서 문제가 없어 자주 튜닝할 이유가 안 보였다(teleop 결과로 확정). `control_time_s` 40초와 fps 20 은
+스크립트 3.7초 · teleop 19.3 fps 실측까지만 확인했고, **사람 체감으로 확정한다.**
+
+#### 남은 일 — Phase 3 teleop (사람)
+
+```bash
+bash scripts/dashboard.sh                                           # 칸 A — 화면·조작 http://localhost:8088/
+CFG=configs/env_config_ur5e_place_teleop.json bash scripts/teleop.sh # 칸 B
+```
+
+**조작은 웹(8088)이 기본이다. `--window` 는 필요 없다.** 대시보드가 브라우저 키를 `xdotool` 로 X 디스플레이 `:1` 에
+넣고, teleop 이 `:1` 의 키를 듣는다. 순서: 페이지의 시뮬레이터 화면을 **한 번 클릭**(초록 테두리 = 조작 켜짐) →
+**Space**(HUD 에 "● 개입 중") → 방향키 · `w`/왼쪽 Ctrl · `g`/왼쪽 Shift. 화면을 클릭하지 않으면 키가 전달되지 않는다.
+`--window` 는 VNC(6080) 화면에 MuJoCo 창을 하나 더 띄울 뿐이다(그 창에 직접 타이핑해도 조작된다).
+2026-10-24 확인: 창 없는 teleop 에 대시보드 `/key` 로 Space·↑·w 를 넣어 팔이 움직였다 — 창 관리자 없는 X 와
+fluxbox + 포커스된 xterm(VNC 와 같은 조건) 둘 다.
+
+확인할 것: ① 블록을 집어 목표 패드에 올릴 수 있다(완료 기준) ② 작업 범위 끝 — 앞 x 0.6, 좌우 ±0.3,
+높이 0.5, 베이스 쪽 x 0.25 — 에서 홱 튀지 않는다 ③ 40초 안에 여유 있게 끝난다 ④ 20 fps 조작이 부드럽다.
+튀는 곳이 있으면 `_CARTESIAN_BOUNDS` 에서 그 영역을 잘라내고 패치 `0007` 을 다시 뜬다.

@@ -1294,3 +1294,18 @@ EVERY=20000 bash scripts/replay_checkpoints.sh               # 2만 스텝 간�
 시작 배너에 구간을 찍고, "영상으로 남기려면 record_clips.py 를 먼저 띄우라" 는 안내도 넣었다.
 
 검증: `FROM=178000 TO=190000` → 7개(178000~190000), `EVERY=40000` → 5개(002000·042000·082000·122000·162000).
+
+---
+
+## 8. UR5e 전환 (2026-10-23, `docs/ur5e-refactoring-prd.md` Phase 0~3)
+
+같은 태스크를 UR5e(6축)로도 돌릴 수 있게 했다. 단계별 근거와 결정은 PRD §8 진행 기록에 있다.
+
+| 무엇 | 어디 |
+| --- | --- |
+| 팔 관절 수 자동 탐지 (`joint1..N`). Panda 동작은 비트 단위로 동일 | gym-hil 패치 `0005` |
+| UR5e 자산 — Menagerie 팔 + `panda.xml` 의 2F-85 서브트리 접붙이기, 토크 `<motor>` | gym-hil 패치 `0006` |
+| UR5e 메시 (패치 밖, Menagerie 고정 커밋) | `scripts/server22/fetch_ur5e_assets.sh` |
+| `UR5ePlaceCube*-v0` 환경과 등록, 로봇별 opspace 인자 `opspace_kwargs` | gym-hil 패치 `0007` |
+| UR5e teleop 설정, `teleop.sh` 가 `CFG=` 를 받음 | `configs/env_config_ur5e_place_teleop.json`, `scripts/teleop.sh` |
+| 패치가 같은 파일에 겹쳐도 `02_setup_project.sh` 재실행이 멈추지 않게 | `scripts/server22/02_setup_project.sh` 의 `series_applied` |

@@ -27,10 +27,15 @@ if [ "${HIL_SKIP_PREFLIGHT:-}" != "1" ] && [ -x scripts/preflight.sh ]; then
   fi
 fi
 
+# 설정 파일. 다른 로봇은 CFG 로 바꾼다:
+#   CFG=configs/env_config_ur5e_place_teleop.json bash scripts/teleop.sh
+CFG="${CFG:-configs/env_config_panda_place_teleop.json}"
+TASK="$(python -c "import json,sys; print(json.load(open(sys.argv[1]))['env']['task'])" "$CFG")" || exit 1
+
 TASK_OVERRIDE=()
 if [ "${1:-}" = "--window" ]; then
   shift
-  TASK_OVERRIDE=(--env.task=PandaPlaceCubeKeyboardWindow-v0)
+  TASK_OVERRIDE=(--env.task="${TASK/Keyboard-v0/KeyboardWindow-v0}")
   cat <<'MSG'
 [teleop] MuJoCo 창 모드 (VNC 6080 에 창이 뜬다). MUJOCO_GL=egl 이라 속도는 정상이다.
   창 안을 한 번 클릭해 포커스를 준 뒤 Space 부터 누른다.
@@ -42,8 +47,9 @@ else
 MSG
 fi
 
+echo "[teleop] $TASK  ($CFG)"
 echo "[teleop] Space 를 먼저 눌러야 나머지 키가 먹는다. 끝낼 때는 Ctrl+C."
 echo
 exec python -u -m lerobot.rl.gym_manipulator \
-  --config_path=configs/env_config_panda_place_teleop.json \
+  --config_path="$CFG" \
   "${TASK_OVERRIDE[@]}" "$@"

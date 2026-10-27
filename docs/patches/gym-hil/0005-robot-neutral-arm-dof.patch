@@ -1,0 +1,70 @@
+diff --git a/gym_hil/mujoco_gym_env.py b/gym_hil/mujoco_gym_env.py
+index ea572f1..d529468 100644
+--- a/gym_hil/mujoco_gym_env.py
++++ b/gym_hil/mujoco_gym_env.py
+@@ -159,8 +159,25 @@ class FrankaGymEnv(MujocoGymEnv):
+         self.camera_id = (camera_id_1, camera_id_2)
+ 
+         # Cache robot IDs
+-        self._panda_dof_ids = np.asarray([self._model.joint(f"joint{i}").id for i in range(1, 8)])
+-        self._panda_ctrl_ids = np.asarray([self._model.actuator(f"actuator{i}").id for i in range(1, 8)])
++        # 팔 자유도는 XML 이름 규약으로 찾는다: joint1, joint2, ... 가 끊기는 지점까지가 팔이다.
++        # (Panda 7, UR5e 6). 각 jointN 에는 같은 번호의 토크 액추에이터 actuatorN 이 있어야 한다.
++        n = 0
++        while True:
++            try:
++                self._model.joint(f"joint{n + 1}")
++            except KeyError:
++                break
++            n += 1
++        if n == 0:
++            raise RuntimeError("joint1 이 없다 — XML 의 이름 규약을 확인할 것")
++        self._arm_dof_ids = np.asarray([self._model.joint(f"joint{i}").id for i in range(1, n + 1)])
++        self._arm_ctrl_ids = np.asarray([self._model.actuator(f"actuator{i}").id for i in range(1, n + 1)])
++        # 아래 코드는 joint id 를 qpos/qvel 인덱스로 그대로 쓴다. 팔이 XML 에서 맨 앞에 와야 성립한다.
++        if not (
++            np.array_equal(self._model.jnt_qposadr[self._arm_dof_ids], self._arm_dof_ids)
++            and np.array_equal(self._model.jnt_dofadr[self._arm_dof_ids], self._arm_dof_ids)
++        ):
++            raise RuntimeError("팔 관절이 qpos/qvel 맨 앞에 있지 않다 — 로봇 XML 을 장면에서 가장 먼저 include 할 것")
+         self._gripper_ctrl_id = self._model.actuator("fingers_actuator").id
+         self._pinch_site_id = self._model.site("pinch").id
+ 
+@@ -219,8 +236,8 @@ class FrankaGymEnv(MujocoGymEnv):
+ 
+     def reset_robot(self):
+         """Reset the robot to home position."""
+-        self._data.qpos[self._panda_dof_ids] = self._home_position
+-        self._data.ctrl[self._panda_ctrl_ids] = 0.0
++        self._data.qpos[self._arm_dof_ids] = self._home_position
++        self._data.ctrl[self._arm_ctrl_ids] = 0.0
+         mujoco.mj_forward(self._model, self._data)
+ 
+         # Reset mocap body to home position
+@@ -248,13 +265,13 @@ class FrankaGymEnv(MujocoGymEnv):
+                 model=self._model,
+                 data=self._data,
+                 site_id=self._pinch_site_id,
+-                dof_ids=self._panda_dof_ids,
++                dof_ids=self._arm_dof_ids,
+                 pos=self._data.mocap_pos[0],
+                 ori=self._data.mocap_quat[0],
+                 joint=self._home_position,
+                 gravity_comp=True,
+             )
+-            self._data.ctrl[self._panda_ctrl_ids] = tau
++            self._data.ctrl[self._arm_ctrl_ids] = tau
+             mujoco.mj_step(self._model, self._data)
+ 
+     def get_robot_state(self):
+@@ -263,8 +280,8 @@ class FrankaGymEnv(MujocoGymEnv):
+         # tcp_quat = self._data.sensor("2f85/pinch_quat").data
+         # tcp_vel = self._data.sensor("2f85/pinch_vel").data
+         # tcp_angvel = self._data.sensor("2f85/pinch_angvel").data
+-        qpos = self.data.qpos[self._panda_dof_ids].astype(np.float32)
+-        qvel = self.data.qvel[self._panda_dof_ids].astype(np.float32)
++        qpos = self.data.qpos[self._arm_dof_ids].astype(np.float32)
++        qvel = self.data.qvel[self._arm_dof_ids].astype(np.float32)
+         gripper_pose = self.get_gripper_pose()
+ 
+         return np.concatenate([qpos, qvel, gripper_pose, tcp_pos])

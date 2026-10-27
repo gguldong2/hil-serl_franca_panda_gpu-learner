@@ -40,7 +40,7 @@ bash scripts/server22/01_install_system.sh --with-vnc 2>&1 | tee outputs/server_
 # 3) (03_verify 의 GL_RENDERER 가 llvmpipe 일 때만) NVIDIA EGL 라이브러리 준비
 bash scripts/server22/05_nvidia_gl.sh 2>&1 | tee outputs/server_nvidia_gl.log
 
-# 4) 저장소(고정 커밋) + venv + torch + 패치 10개
+# 4) 저장소(고정 커밋) + venv + torch + 패치 13개 + UR5e 메시(Menagerie 고정 커밋)
 #    torch 종류(cu126/cu128)는 GPU 를 보고 알아서 고른다. 고른 뒤 실제 GPU 계산까지
 #    해 보고, 안 되면 반대쪽으로 한 번 더 설치한다. 그래도 안 되면 멈춘다.
 bash scripts/server22/02_setup_project.sh 2>&1 | tee outputs/server_setup_project.log
