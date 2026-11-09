@@ -32,7 +32,16 @@ CFG="${CFG:-configs/train_config_panda_place_gpu.json}"
 CMD="${1:-status}"; shift || true
 
 OUT="$(python -c "import json,sys;print(json.load(open(sys.argv[1]))['output_dir'])" "$CFG" 2>/dev/null)"
-if [ -z "$OUT" ]; then echo "[train] 설정을 읽지 못했다: $CFG"; exit 1; fi
+if [ -z "$OUT" ]; then
+  echo "[train] 설정을 읽지 못했다: $CFG"
+  if [ ! -f "$CFG" ]; then
+    echo "        그 파일이 없다. CFG= 경로를 확인한다 (tmux 세션에 CFG 를 넣었다면: echo \$CFG)"
+  elif ! .venv/bin/python -c '' 2>/dev/null; then
+    echo "        venv 의 Python 이 돌지 않는다 — pod/컨테이너가 새로 떠 시스템 Python 3.12 가 지워졌을 때 이렇다."
+    echo "        고치기:  bash scripts/preflight.sh --fix   (필요하면 01_install_system.sh 를 다시 돌린다)"
+  fi
+  exit 1
+fi
 LAST="$OUT/checkpoints/last"
 PAUSE_FILE="${HIL_PAUSE_FILE:-/dev/shm/hil_pause}"
 
@@ -106,6 +115,7 @@ print("=" * 60)
 print(f"  로봇 {robot}   ·   {task}")
 print(f"  {out}")
 print("=" * 60)
+ckpt_inter = 0   # 체크포인트가 아직 없을 때(새 학습 첫 2,000 스텝 전)도 아래 inter 계산이 이 이름을 쓴다
 if not ts:
     print("  아직 체크포인트가 없다 — 새로 시작하는 상태다.")
 else:

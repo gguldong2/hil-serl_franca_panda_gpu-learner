@@ -802,3 +802,48 @@ fluxbox + 포커스된 xterm(VNC 와 같은 조건) 둘 다.
 **남은 것**: 시연 녹화(사람) → 병합 → 통계 → 스모크 → 본 학습. learner 가 "새 전이가 없으면 멈추는" 장치는 아직 없다 —
 actor 가 `online_steps` 를 다 채우고 끝나면 `bash scripts/train.sh stop` 으로 learner 도 끝내야 한다
 (10/14 Panda 에서 actor 종료 뒤 learner 가 45시간 혼자 돌며 정책이 무너졌다: 500000 19/20 → 802000 0/8).
+
+### 2026-11-05 — 점검: Panda 와 UR5e 는 어디서 갈리나 (모듈 vs 병렬 복사)
+
+질문: "UR5e 와 Panda 를 구분하는 파일들이 어디서 어떻게 갈리고, 모듈로 잘 나뉘어 있나?" 에 대한 점검 결과다.
+**모듈** = 한 코드가 로봇 사양을 받아서 돈다, **병렬** = 로봇마다 파일을 통째로 한 벌씩 복사했다.
+숫자는 두 파일의 줄 단위 일치율이다(2026-11-06 다시 잼).
+
+| 층 | Panda | UR5e | 갈리는 방식 | 구조 |
+| --- | --- | --- | --- | --- |
+| 로봇 모델 | `assets/panda.xml` | `assets/ur5e.xml` (+ Menagerie 메시) | 파일이 따로. `joint1..N` · `actuator1..N` · `pinch` 같은 **이름 규약**이 코드와의 약속 | ✅ 모듈 |
+| 공통 제어 | `mujoco_gym_env.py` 의 `FrankaGymEnv` 하나를 같이 씀 | (같음) | 로봇별 `if` 가 없다. 차이는 생성자 인자 4개(장면 · home · 작업 범위 · `opspace_kwargs`)로만 들어온다 | ✅ 모듈 |
+| 학습 스택 (lerobot) | — | — | 로봇을 모른다. 설정의 태스크 이름과 상태 차원(18 / 16)만 본다 | ✅ |
+| 패치 | 0001~0004 | 0006 · 0007 | 패치 파일 단위 | ✅ |
+| 장면 XML | `place_cube_scene.xml` | `place_cube_scene_ur5e.xml` | 통째 복사, include 한 줄만 다름 (98%) | ⚠ 병렬 |
+| 태스크 env | `panda_place_gym_env.py` | `ur5e_place_gym_env.py` | 통째 복사, 상수 3개와 경로만 다름 (91%) | ⚠ 병렬 |
+| 등록 | `__init__.py` register 블록 | 같은 블록 복사 | `wrappers/factory.py` 가 env id 문자열로 `if/elif` 4개 | ⚠ 하드코딩 |
+| 설정 JSON | `panda_*` | `ur5e_*` | 통째 복사 (teleop 85% · 학습 89%) | ⚠ 병렬 |
+| 스크립트 | `CFG` 기본값 = Panda | `CFG=…ur5e…` | 아래처럼 흩어져 있다 | ⚠ 분산 |
+
+**스크립트가 로봇을 알아보는 방식이 제각각이다.**
+
+- `train.sh` — 태스크 이름에서 정규식 `(UR5e|Panda|…)` 로 로봇 이름을 뽑는다 (status 표시, `new` 이름 붙이기).
+- `update_dataset_stats.py` — 태스크 접두어 → 환경 모듈 표를 따로 갖고 `_CARTESIAN_BOUNDS` 를 읽는다.
+- `teleop` · `record` · `train` 의 `--window` — `Keyboard-v0` → `KeyboardWindow-v0` 문자열 치환.
+- `record.sh` — Panda 의 옛 폴더 이름 `data/place_demo` 만 예외 처리.
+- **아직 Panda 만 아는 것**: `run_actor.sh --window`(PandaPlaceCubeKeyboardWindow-v0 고정) · `replay_checkpoints.sh`(`TASK` 기본값) ·
+  `eval_policy.py` · `check_env.py`(PandaPickCube) · `progress_dashboard.py` · `report.py` · `stop_after.py` · `watch_progress.py`(`--run` 기본값 `panda_place_gpu`).
+  UR5e 로 쓰려면 인자를 직접 줘야 한다.
+
+**평가**: 아래층(로봇 모델 ↔ 제어 ↔ 학습 스택)은 깔끔하다 — 로봇을 하나 더 붙여도 제어 코드는 손댈 게 없다.
+위층은 복사본이다.
+
+- **태스크가 두 벌이다.** 보상 · 성공 조건 · 블록 배치가 두 파일에 복사돼 있다. 지금은 같음을 검증했지만,
+  앞으로 Panda 쪽만 고치면 UR5e 는 경고 없이 다른 태스크가 된다. "같은 태스크" 를 구조가 아니라 사람이 조심해서 지키는 상태다.
+- **로봇 판별이 흩어져 있다.** 로봇을 하나 더 늘리면 고칠 곳이 열 군데 가까이 된다.
+- 태스크 env 복사는 이 PRD Phase 3 의 지시("복사해서 home · bounds · xml 만 바꾼다")를 따른 것이다. 스크립트 · 설정 쪽은 Phase 5 가 정리한다.
+  **태스크 env 와 장면의 중복은 Phase 5 범위 밖**이라 그대로 남는다.
+
+**제안 (결정 대기 — PRD 의 "복사" 지시와 다르게 가는 것이라 사용자가 정한다)**
+
+1. 태스크 env 를 하나로: `PlaceCubeGymEnv` 하나에 로봇 사양(장면 · home · 작업 범위 · opspace 인자)을 넘기고, Panda / UR5e 클래스는 사양만 다른 몇 줄로.
+   결정론 지문으로 두 로봇 모두 비트 단위로 같은지 확인할 수 있어 기존 시연 · 가중치를 그대로 쓴다.
+2. 같이: 등록을 로봇 목록 반복으로, `factory.py` 의 `if/elif` 를 표 하나로.
+3. 장면 XML 합치기는 include 를 코드에서 바꿔 끼워야 해 손이 더 간다. 한 줄 차이 복사본으로 둬도 위험은 작다.
+4. 시점: 비용이 가장 작은 때는 UR5e 시연 녹화 전. 미루면 Phase 5 와 같이.

@@ -45,6 +45,9 @@ scp hil-serl-bundle.tgz <user>@<server>:~/
 
 모든 명령은 `[서버 | ~/project/hil-serl | -]` 에서 시작한다. 각 단계 로그를 `outputs/` 에 남긴다.
 
+> 각 스크립트가 무엇을 보고(GPU 세대 · 드라이버 버전 · EGL 라이브러리 …) 어떻게 갈라지는지는
+> `docs/04_reproduction-handbook.html` §07 "설치 · 조치 스크립트 지도", 실제로 들여다보는 명령·파일은 §05.
+
 ```bash
 # 2-0. 풀기
 mkdir -p ~/project/hil-serl && tar xzf ~/hil-serl-bundle.tgz -C ~/project/hil-serl && cd ~/project/hil-serl && mkdir -p outputs
@@ -149,8 +152,9 @@ python -m lerobot.rl.learner --config_path=outputs/train/panda_keyboard_gpu/chec
 | `actor_learner_config.policy_parameters_push_frequency` | 4 | **50** | **초 단위.** 가중치를 actor 로 보내는 주기 |
 | `learner_host` | localhost | localhost | 변경 없음 |
 
-GPU 메모리가 80 GB 보다 작으면 **버퍼 용량부터** 줄인다 (40 GB→20000/20000,
-24 GB→10000/10000, 16 GB 이하→`storage_device: cpu`). 표는 `docs/gpu.md` §3.
+GPU 메모리가 80 GB 보다 작으면 **버퍼 용량부터** 줄인다 (40 GB→30000/30000,
+32 GB→20000/30000, 24 GB→10000/20000, 16 GB 이하→`storage_device: cpu`). 오프라인 칸은 시연 프레임 수
+(Panda 19,612)보다 커야 learner 가 시작된다. 표는 `docs/gpu.md` §3, 다른 GPU 서버로 옮길 때는 `docs/04_reproduction-handbook.html`.
 
 ### 실측 성능 (이 설정, 40.9시간 연속)
 
