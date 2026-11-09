@@ -550,13 +550,16 @@ bash scripts/preflight.sh --fix      <span class="c"># "막힘" 이면 — 고�
   </div>
   <div class="cmd">
     <div class="cmd-head"><span>정상일 때 (예시)</span><button type="button" class="copy">복사</button></div>
-<pre><code>== 1. GPU 드라이버 / nvidia-gl ==
+<pre><code>== 0. 시스템 패키지 · venv ==
+  [OK]   venv Python 3.12.13
+  [OK]   gcc · xdotool · X 서버 있음
+== 1. GPU 드라이버 / nvidia-gl ==
   커널 드라이버 535.247.01 · 시스템 libEGL_nvidia 0개 · nvidia-gl/ 535.247.01
   [OK]   버전 일치 (535.247.01)
 == 2. EGL 실제 렌더링 ==
   [OK]   NVIDIA A100 80GB PCIe/PCIe/SSE2 2.7ms
-== 3. X 디스플레이 :1 (VNC) ==
-  [OK]   X :1 떠 있음
+== 3. X 디스플레이 :1 (VNC 또는 Xvfb) ==
+  [OK]   X :1 떠 있음 (VNC)
 == 4. 디스크 ==
   [주의] 39GB 남음(97%). ... 정리를 권함
 == 5. 이미 떠 있는 것 ==
@@ -570,10 +573,16 @@ bash scripts/preflight.sh --fix      <span class="c"># "막힘" 이면 — 고�
       <thead><tr><th>점검 항목</th><th>언제 깨지나</th><th>깨지면</th><th>고치는 법 (<code>--fix</code> 가 하는 일)</th></tr></thead>
       <tbody>
         <tr>
-          <td class="k">X 디스플레이 :1 (VNC)</td>
+          <td class="k">시스템 패키지 · venv</td>
+          <td><strong>컨테이너가 이미지 상태로 새로 뜰 때</strong> (RunPod 의 pod 멈춤 → 다시 켜기. 이 서버는 디스크가 남아 해당 없음)</td>
+          <td>venv 의 python 이 시스템 Python 3.12 를 가리키는 링크라 같이 깨진다. gcc 가 없으면 learner 의 torch.compile 이 죽는다</td>
+          <td><code>bash scripts/server22/01_install_system.sh</code></td>
+        </tr>
+        <tr>
+          <td class="k">X 디스플레이 :1 (VNC 또는 Xvfb)</td>
           <td><strong>컨테이너가 다시 뜰 때마다</strong></td>
           <td>키보드 개입(<kbd>Space</kbd> 등)이 안 먹는다. <code>--window</code> 면 actor 가 죽는다</td>
-          <td><code>bash scripts/server22/04_start_vnc.sh</code> — 비밀번호(<code>~/.vnc/passwd</code>)는 홈에 남아 다시 묻지 않는다</td>
+          <td><code>bash scripts/server22/04_start_vnc.sh</code> — 비밀번호(<code>~/.vnc/passwd</code>)는 홈에 남아 다시 묻지 않는다. VNC 가 안 깔린 서버(RunPod 등)에서는 <code>--fix</code> 가 대신 <code>Xvfb :1</code> 을 띄운다</td>
         </tr>
         <tr>
           <td class="k">EGL (GPU 카메라 렌더)</td>
@@ -620,6 +629,8 @@ bash scripts/preflight.sh --fix      <span class="c"># "막힘" 이면 — 고�
       <li><strong>그 서버가 그래픽 라이브러리를 이미 갖고 있으면</strong>(<code>ldconfig -p | grep libEGL_nvidia</code> 가 나오면)
           — <code>nvidia-gl/</code> 이 오히려 엉뚱한 버전으로 덮어쓴다. <code>rm -rf nvidia-gl</code> 로 지운다. 점검 스크립트가 이 경우를 알려 준다.</li>
       <li>GPU 가 없는 곳이면 EGL 이 CPU 로 돈다. 돌기는 하지만 actor 가 실시간(20 fps)을 못 맞춘다.</li>
+      <li><strong>GPU 종류가 다르거나(RTX 5090 등) 대여 서버(RunPod)로 옮기면</strong> — 무엇이 자동으로 맞춰지고 무엇을 손대야 하는지(버퍼 크기),
+          설치 스크립트가 각각 무엇을 보고 갈라지는지(<a href="04_reproduction-handbook.html#scripts">04 핸드북 §07 스크립트 지도</a>), 첫 서버 검증 절차는 <a href="04_reproduction-handbook.html#first">§12</a>. <strong>RunPod 에서 칠 명령 순서</strong>(pod 만들기 · 설치 · tmux · 학습 · 멈추기 · 다시 켜기)는 <a href="05_runpod-runbook.html">05 RunPod 실행 절차</a>.</li>
     </ul>
   </div>
 
@@ -1243,11 +1254,16 @@ bash scripts/train.sh actor              <span class="c"># --window 를 붙이�
     그 판을 빨리 끝내고 다음으로 넘어가면 된다.
   </p>
   <div class="note">
-    <span class="tag">일시정지는 안전하다</span>
+    <span class="tag">일시정지는 연결을 끊지 않는다</span>
     <p>
-      프로세스·gRPC 연결·버퍼가 전부 살아 있는 채로 시뮬레이터만 멈춘다. 몇 분이든 몇 시간이든 세워 뒀다가
+      프로세스·gRPC 연결·버퍼가 전부 살아 있는 채로 시뮬레이터만 멈춘다. 세워 뒀다가
       <code>resume</code> 하면 그 자리에서 이어진다. 경과 시간에서 멈춘 만큼은 빼고 센다.
       <span class="sub">측정: 3초에 189스텝 → 일시정지 중 3초에 0스텝 → 재개 후 3초에 128스텝.</span>
+    </p>
+    <p>
+      <strong>다만 learner 는 멈추지 않는다.</strong> 세워 둔 동안 새 데이터 없이 같은 버퍼로 계속 학습하고, 버퍼가 작은 초반일수록 그 부담이 크다.
+      잠깐은 괜찮지만 몇 시간씩 세워 두는 것은 actor 가 끝났는데 learner 만 도는 것과 같다 —
+      <a href="03_scenario-online-offline-data-mixed.html#q20">03 문서 Q20</a>.
     </p>
   </div>
 
@@ -1280,12 +1296,14 @@ CFG=configs/train_config_place_v2.json bash scripts/train.sh status</code></pre>
     <table>
       <thead><tr><th></th><th>측정값</th></tr></thead>
       <tbody>
-        <tr><td class="k">learner GPU 메모리</td><td><strong>4.2 GB / 80 GB (5%)</strong></td></tr>
-        <tr><td class="k">learner GPU 사용률</td><td>시작 직후 50% → 진행 중 0~5%</td></tr>
+        <tr><td class="k">learner GPU 메모리</td><td><strong>36.2 GiB / 80 GiB</strong> — 그중 버퍼 29.3 GiB, 나머지 약 7 GiB 가 모델·옵티마이저·CUDA·torch.compile</td></tr>
+        <tr><td class="k">learner GPU 사용률</td><td>11~31%</td></tr>
         <tr><td class="k">actor(추론)</td><td>약 0.65 GB</td></tr>
         <tr><td class="k">두 번째 A100</td><td>놀고 있다</td></tr>
-        <tr><td class="k">리플레이 버퍼</td><td>RAM (<code>storage_device: cpu</code>) — 전이당 384 KB</td></tr>
+        <tr><td class="k">리플레이 버퍼</td><td>GPU (<code>storage_device: cuda</code>) — 전이당 384 KiB × (온라인 40,000 + 오프라인 40,000)</td></tr>
         <tr><td class="k">물리 시뮬레이션</td><td>CPU. GPU 는 렌더(EGL)와 신경망에만 쓴다</td></tr>
+        <tr><td class="k" colspan="2"><span class="sub">03_exp_b_assist 기준 (2026-11-06 갱신 — 예전 값 4.2 GB 는 버퍼가 RAM 에 있던 때다).
+            GPU 메모리가 80 GB 보다 작으면 버퍼를 줄여야 한다 → <a href="04_reproduction-handbook.html#vram">04 재현 핸드북 §03</a></span></td></tr>
       </tbody>
     </table>
   </div>
@@ -1343,7 +1361,7 @@ HIL_ACTOR_GPU=cpu bash scripts/train.sh actor     <span class="c"># actor 추론
       <code>from_lerobot_dataset</code> 는 <code>capacity &lt; 시연 프레임 수</code> 이면 <strong>시작하자마자 죽는다</strong>
       (<code>buffer.py:443</code>). 시연 43개 = 19,612 프레임이라 기존 상한 10,000 으로는 못 쓴다.
       지금은 <code>offline_buffer_capacity</code> 40,000 · <code>online_buffer_capacity</code> 40,000 으로 올려 뒀다
-      (합쳐 약 29 GB RAM, 서버 384 GB 중).
+      (합쳐 GPU 메모리 약 29 GiB, A100 80 GB 중).
       더 모으면 <strong>에피소드 수 × 평균 프레임</strong> 보다 크게 다시 잡을 것.
     </p>
   </div>
@@ -1516,7 +1534,7 @@ python scripts/watch_progress.py</code></pre>
         <tr><td class="k">seed</td><td>1000</td><td>난수 씨앗. <strong>같은 seed = 같은 초기 가중치·같은 블록 배치 순서.</strong>
             실험을 비교할 때 조건을 맞추려고 쓴다. 운이 나빴다 싶으면 바꿔서 다시 돌려 본다</td></tr>
         <tr><td class="k"><b>save_freq</b></td><td>2000</td><td>몇 최적화 스텝마다 체크포인트를 저장할지.
-            줄이면 자주 저장(=죽어도 덜 잃음)하지만 버퍼까지 통째로 쓰므로 매번 몇 초 멈춘다</td></tr>
+            줄이면 자주 저장(=죽어도 덜 잃음)하지만, 저장할 때마다 두 버퍼까지 통째로 다시 쓰느라 <strong>learner 가 멈춘다</strong> — 두 버퍼가 꽉 차면 1회 10~11분, 그동안 actor 도 새 가중치를 못 받는다(<a href="03_scenario-online-offline-data-mixed.html#q16">03 문서 Q16</a>). <span class="sub">(11-06 정정: 예전엔 '몇 초' 라고 적었다)</span></td></tr>
         <tr><td class="k">log_freq</td><td>10</td><td>몇 스텝마다 로그를 찍을지. 화면만 바뀐다</td></tr>
         <tr><td class="k">num_workers</td><td>4</td><td>데이터로더 워커 수. <strong>RL 경로에서는 쓰이지 않는다</strong>
             (지도학습 설정에서 물려받은 값). 버퍼에서 직접 뽑기 때문</td></tr>
@@ -2206,7 +2224,7 @@ python scripts/record_clips.py --all              <span class="c"># 실패도 �
         <tr>
           <td class="k"><code>algorithm/</code></td>
           <td>45 MB</td>
-          <td>SAC critic · discrete critic · temperature</td>
+          <td>SAC 크리틱 · 그리퍼(이산) 크리틱 · 온도</td>
           <td>학습을 이어 갈 때만</td>
         </tr>
         <tr>
@@ -2308,13 +2326,29 @@ bash scripts/train.sh status         <span class="c"># 학습 스텝 242,000 으
     <strong>초반에는 학습이 잠시 불안정</strong>할 수 있다. 시연 데이터는 오프라인 버퍼로 다시 로딩된다.
   </p>
 
-  <div class="note">
+  <div class="note" id="stop-learner">
     <span class="tag">끝낼 때는 Ctrl+C 말고 stop</span>
     <p>
       learner 를 <kbd>Ctrl</kbd>+<kbd>C</kbd> 로 끄면 <strong>마지막 저장 이후 진행분이 사라진다.</strong>
       체크포인트는 2,000 스텝마다 남으므로 최대 2,000 스텝을 잃는다.
       <code>bash scripts/train.sh stop</code> 을 먼저 치면 그 시점 체크포인트를 남기고 스스로 끝낸다.
       그다음 actor 칸에서 <kbd>Ctrl</kbd>+<kbd>C</kbd> 로 정리한다.
+    </p>
+    <div class="tw" style="margin-top:8px">
+      <table>
+        <thead><tr><th>끄는 방법</th><th>체크포인트</th><th>깨질 위험</th></tr></thead>
+        <tbody>
+          <tr><td class="k"><code>train.sh stop</code></td><td>그 시점으로 저장하고 끝낸다</td><td>없음. 단 저장이 버퍼가 꽉 차 있으면 5~11분 걸린다 — 끝날 때까지 기다린다</td></tr>
+          <tr><td class="k">learner <kbd>Ctrl</kbd>+<kbd>C</kbd> 한 번</td><td>저장하지 않는다 — 마지막 정기 체크포인트로 돌아간다</td><td>없음. 마침 저장 중이었으면 코드상 그 저장을 끝까지 마치고 꺼진다 — 5~11분 <strong>멈춘 것처럼 보인다</strong>. 이때 한 번 더 누르지 않는다</td></tr>
+          <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>C</kbd> 두 번</td><td>즉시 강제 종료</td><td><strong>저장 중이었으면 버퍼 스냅샷(<code>dataset/</code> · <code>dataset_offline/</code>)이 반쯤 쓰인 채 남아 다음 재개가 깨진다</strong></td></tr>
+          <tr><td class="k">서버 재시작 · pod 멈춤 · <code>kill -9</code></td><td>즉시 죽는다</td><td>저장 중이었으면 위와 같다. 버퍼가 꽉 찬 뒤에는 시간의 약 61% 가 저장 중이다(<a href="03_scenario-online-offline-data-mixed.html#q16">03 Q16</a>)</td></tr>
+          <tr><td class="k">actor <kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>actor 는 저장할 것이 없다</td><td>없음. 진행 중이던 한 판이 learner 에 안 갈 수 있을 뿐</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin-top:8px">
+      근거: learner 는 첫 신호에 "끝내라" 표시만 하고 지금 하던 일(저장 포함)을 마친 뒤 루프를 빠져나온다. 두 번째 신호에 바로 종료한다(<code>utils/process.py:85-99</code>).
+      저장은 기존 스냅샷 폴더를 먼저 지우고 새로 쓴다(<code>learner.py:685-702</code>). 가중치 체크포인트와 <code>checkpoints/last</code> 는 그보다 먼저 써지므로 남는다 — 깨지는 것은 버퍼 스냅샷이다. 저장 도중에 <kbd>Ctrl</kbd>+<kbd>C</kbd> 를 누르는 경우는 코드로만 확인했고 실제로 시험하지는 않았다.
     </p>
   </div>
 
@@ -2520,7 +2554,7 @@ bash scripts/train.sh status         <span class="c"># 학습 스텝 242,000 으
 
 <footer>
   <p>
-    PandaPlaceCube · hil-serl-mujoco-franka · 2026-09-21 ·
+    PandaPlaceCube · hil-serl-mujoco-franka · 2026-09-21 · 2026-11-06 GPU 표 갱신 · 04 핸드북 연결 ·
     LeRobot 0.6.1 / gym-hil 0.1.14 / MuJoCo 3.8.1 / A100 80GB
   </p>
 </footer>

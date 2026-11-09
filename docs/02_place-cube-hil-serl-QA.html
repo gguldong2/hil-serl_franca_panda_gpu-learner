@@ -101,6 +101,7 @@ blockquote p{margin:0 0 6px}
 blockquote p:last-child{margin:0}
 blockquote cite{display:block;font-family:var(--font-mono);font-size:11.5px;
   color:var(--ink-3);font-style:normal;margin-top:6px}
+blockquote p.orig{font-size:12px;color:var(--ink-3);margin-top:4px}
 
 .note{border-radius:3px;padding:13px 16px;margin:16px 0;font-size:14.2px}
 .note.warn{background:var(--warn-soft);border:1px solid color-mix(in oklab,var(--warn) 30%,transparent)}
@@ -133,7 +134,8 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-of
     여기 숫자는 전부 이 프로젝트의 <code>03_exp_b_assist</code> 런에서 직접 잰 것이다.
   </p>
   <p class="meta">LeRobot 0.6.1 · gym-hil · SAC + RLPD · A100 80GB × 2<br>
-    갱신 2026-09-29 — 버퍼·샘플링·학습 주기 3문항 추가 (Q11–Q13)</p>
+    갱신 2026-09-29 — 버퍼·샘플링·학습 주기 3문항 추가 (Q11–Q13)<br>
+    정정 2026-11-06 — Q12·Q13 이 <code>utd_ratio</code> 를 1 로 잘못 보고 계산했다. 실제 설정은 2(최적화 스텝 1회 = 배치 2개)라 Q12 의 추첨 횟수를 두 배로 고쳤다. 두 버퍼의 비율(약 53배)은 그대로다</p>
 </header>
 
 <nav class="toc">
@@ -199,8 +201,10 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-of
       결과는 51판까지 개입으로 성공시킨 뒤 <strong>398판 동안 성공 0</strong>이었다.
     </p>
     <blockquote>
-      <p>we should avoid persistently providing <strong>long sparse interventions that lead to task successes</strong>.
-      Such an intervention strategy will cause the <strong>overestimation of the value function</strong>,
+      <p>과제를 성공으로 끝내 주는 <strong>길고 드문 개입</strong>을 계속 주는 것은 피해야 한다.
+      이런 개입 방식은 특히 학습 초반에 <strong>가치 함수를 과대평가</strong>하게 만들고, 그 결과 학습이 불안정해질 수 있다.</p>
+      <p class="orig" lang="en">원문: we should avoid persistently providing long sparse interventions that lead to task successes.
+      Such an intervention strategy will cause the overestimation of the value function,
       particularly in the early stages of the training process; which can result in unstable training dynamics.</p>
       <cite>HIL-SERL (Luo et al., 2024)</cite>
     </blockquote>
@@ -227,10 +231,12 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-of
     <h2>언제, 어떻게 개입해야 하나</h2>
     <p class="short">막히는 그 지점에서만. 한 판을 통째로 하지 않는다.</p>
     <blockquote>
-      <p>the policy improves faster when the human operator issues <strong>specific corrections
-      while letting the robot explore on its own otherwise</strong>.</p>
-      <p>Initially, we issue long, sparse interventions when the policy is immature.
-      As the policy improves, <strong>shorter interventions</strong> are sufficient to correct fewer mistakes.</p>
+      <p>사람이 <strong>필요한 곳에서만 짚어 고쳐 주고, 나머지는 로봇이 스스로 탐색하게 둘 때</strong> 정책이 더 빨리 나아진다.</p>
+      <p>처음 정책이 미숙할 때는 길고 드문 개입을 한다.
+      정책이 나아지면 줄어든 실수를 고치는 데 <strong>더 짧은 개입</strong>이면 충분하다.</p>
+      <p class="orig" lang="en">원문: the policy improves faster when the human operator issues specific corrections
+      while letting the robot explore on its own otherwise. / Initially, we issue long, sparse interventions when the policy is immature.
+      As the policy improves, shorter interventions are sufficient to correct fewer mistakes.</p>
       <cite>HIL-SERL (Luo et al., 2024)</cite>
     </blockquote>
     <p>논문이 개입할 시점으로 꼽는 것은 두 가지다 — 정책이 <em>돌아올 수 없는 상태</em>로 갔을 때,
@@ -257,7 +263,8 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-of
       실제로는 조금만 벗어나면(반드시 벗어난다) 배운 게 없다. covariate shift 다.
     </p>
     <blockquote>
-      <p>interventions <strong>demonstrate ways of solving the task from various states</strong>.</p>
+      <p>개입은 <strong>여러 상태에서 과제를 푸는 방법을 보여 준다</strong>.</p>
+      <p class="orig" lang="en">원문: interventions demonstrate ways of solving the task from various states.</p>
       <cite>HIL-SERL (Luo et al., 2024)</cite>
     </blockquote>
     <div class="data">
@@ -363,7 +370,7 @@ loss_actor  = ( α·log π(a|s) − min Q(s, a_π) ).mean()</code></pre>
       </table>
     </div>
     <p>
-      actor 없이 learner 만 돌리면 새 데이터가 안 들어와 기존 버퍼만 반복 학습한다.
+      actor 없이 learner 만 돌리면 새 데이터가 안 들어와 기존 버퍼만 반복 학습한다 — 실패 비율 · 성공 데이터 · 일시정지와 엮어 왜 위험한지는 <a href="03_scenario-online-offline-data-mixed.html#q20">03 문서 Q20</a>.
       learner 없이 actor 만 돌리면 <code>Connection refused</code> 로 무한 대기한다.
       가중치 전송 주기 <code>policy_parameters_push_frequency</code> 는 <strong>스텝이 아니라 초</strong>다.
     </p>
@@ -487,6 +494,7 @@ loss_actor  = ( α·log π(a|s) − min Q(s, a_π) ).mean()</code></pre>
       버퍼는 에피소드를 모른다. <code>capacity</code> 길이의 평평한 배열이고 한 칸이
       <code>(state, action, reward, next_state, done, truncated, complementary_info)</code> 하나다.
       에피소드 경계는 <code>done</code> 플래그로만 표시되고, 샘플링할 때 에피소드를 통째로 뽑는 일은 없다.
+      한 칸의 각 항목이 무엇이고, 물체 위치 · 시각 t 같은 조건이 왜 붙지 않는지는 <a href="03_scenario-online-offline-data-mixed.html#q21">03 문서 Q21</a>.
     </p>
     <pre><code># buffer.py:231 — 링버퍼. 꽉 차면 0번 칸부터 덮어쓴다.
 self.position = (self.position + 1) % self.capacity
@@ -549,7 +557,7 @@ idx = torch.randint(low=0, high=high, size=(batch_size,), device=...)</code></pr
 
   <article id="q12">
     <h2>초반에 개입해서 만든 데이터가 뒤로 갈수록 희석되나</h2>
-    <p class="short">지금까지는 정반대였다. 오히려 54배 우대받았다. 그런데 방금 상황이 바뀌었다.</p>
+    <p class="short">지금까지는 정반대였다. 오히려 약 53배 우대받았다. 그런데 방금 상황이 바뀌었다.</p>
 
     <p>
       가중치는 없지만 <strong>체류 시간</strong>이 사실상의 가중치로 작동한다.
@@ -561,15 +569,16 @@ idx = torch.randint(low=0, high=high, size=(batch_size,), device=...)</code></pr
         <caption>프레임 한 장이 학습에 쓰이는 횟수 — 216,000 스텝 기준</caption>
         <thead><tr><th>데이터</th><th class="n">버퍼 체류</th><th class="n">총 추첨</th><th class="n">프레임당</th></tr></thead>
         <tbody>
-          <tr><td class="hi">시연 · 개입 (시연 버퍼)</td><td class="n">216,000 스텝 내내</td><td class="n">2,765만</td><td class="n hi">약 920회</td></tr>
-          <tr><td>롤아웃 (온라인 버퍼)</td><td class="n">40,000 env step = 33분</td><td class="n">70만</td><td class="n">약 17회</td></tr>
+          <tr><td class="hi">시연 · 개입 (시연 버퍼)</td><td class="n">216,000 스텝 내내</td><td class="n">5,530만</td><td class="n hi">약 1,840회</td></tr>
+          <tr><td>롤아웃 (온라인 버퍼)</td><td class="n">40,000 env step = 33분</td><td class="n">140만</td><td class="n">약 35회</td></tr>
         </tbody>
       </table>
     </div>
 
     <p>
-      같은 프레임이라도 개입이면 <strong>54배 더 학습된다.</strong> 초반에 개입해서 만든 데이터는
-      희석되기는커녕 21.9시간 내내 배치의 절반을 차지하며 920번씩 반복 학습됐다.
+      같은 프레임이라도 개입이면 <strong>약 53배 더 학습된다.</strong> 초반에 개입해서 만든 데이터는
+      희석되기는커녕 21.9시간 내내 배치의 절반을 차지하며 1,840번씩 반복 학습됐다.
+      <span class="dim">(최적화 스텝 1회에 배치 2개 × 시연 몫 128. 11-06 정정 전에는 배치 1개로 계산해 절반 값이었다.)</span>
       그러니 "초반에 좋은 데이터를 만들어두면 되는가"는 <strong>메커니즘상 맞다 — 시연 버퍼가 차기 전까지는.</strong>
     </p>
 
@@ -664,21 +673,22 @@ while True:
 
     <div class="data">
       <table>
-        <caption>1 optimization step 에서 정확히 일어나는 일 — utd_ratio = 1 이므로 배치 1개</caption>
+        <caption>1 optimization step 에서 정확히 일어나는 일 — utd_ratio = 2 이므로 배치 2개 (sac_algorithm.py:201-269)</caption>
         <thead><tr><th class="n">순서</th><th>대상</th><th>내용</th></tr></thead>
         <tbody>
-          <tr><td class="n">1</td><td>크리틱 앙상블 (2개)</td><td>배치 256 으로 벨만 회귀 · grad clip · step</td></tr>
-          <tr><td class="n">2</td><td>discrete critic</td><td>그리퍼 3-way (<code>num_discrete_actions: 3</code>)</td></tr>
-          <tr><td class="n">3</td><td>액터</td><td><code>policy_update_freq = 1</code> → 매 스텝</td></tr>
-          <tr><td class="n">4</td><td>온도 α</td><td>엔트로피 목표 맞추기</td></tr>
-          <tr><td class="n">5</td><td>타깃 네트워크</td><td>soft update, τ = 0.005</td></tr>
+          <tr><td class="n">1</td><td>배치 ① 256 — 크리틱 앙상블 (2개) · discrete critic</td><td>벨만 회귀 · grad clip · step, 이어서 타깃 soft update</td></tr>
+          <tr><td class="n">2</td><td>배치 ② 256 — 크리틱 앙상블 (2개)</td><td>같은 갱신 한 번 더</td></tr>
+          <tr><td class="n">3</td><td>배치 ② — discrete critic</td><td>그리퍼 3-way (<code>num_discrete_actions: 3</code>)</td></tr>
+          <tr><td class="n">4</td><td>배치 ② — 액터</td><td><code>policy_update_freq = 1</code> → 매 스텝</td></tr>
+          <tr><td class="n">5</td><td>배치 ② — 온도 α</td><td>엔트로피 목표 맞추기</td></tr>
+          <tr><td class="n">6</td><td>타깃 네트워크</td><td>soft update, τ = 0.005</td></tr>
         </tbody>
       </table>
     </div>
 
     <p>
       배치를 뽑는 곳이 <code>next(batch_iterator)</code> 한 줄이다. 즉
-      <strong>5:5 혼합은 "주기적"이 아니라 매 배치 — 초당 2.74회</strong> 일어난다.
+      <strong>5:5 혼합은 "주기적"이 아니라 매 배치 — 초당 약 5.5회(2.74 스텝 × 배치 2개)</strong> 일어난다.
     </p>
 
     <div class="data">
@@ -686,10 +696,10 @@ while True:
         <caption>실측 속도 · 03_exp_b_assist</caption>
         <tbody>
           <tr><td>최적화 스텝</td><td class="n hi">2.74 step/s</td></tr>
-          <tr><td>actor env step</td><td class="n">20 step/s</td></tr>
+          <tr><td>actor 환경 스텝</td><td class="n">20 step/s</td></tr>
           <tr><td>비율</td><td class="n">env step 7.3개당 학습 1회</td></tr>
           <tr><td>현재 누적</td><td class="n">216,000 스텝 / 21.9시간</td></tr>
-          <tr><td>배치당 전파량</td><td class="n">256 전이</td></tr>
+          <tr><td>스텝당 전파량</td><td class="n">512 전이 (배치 256 × 2)</td></tr>
           <tr><td>가중치 → actor</td><td class="n">50초마다 <span class="dim">(설정값. 라이브러리 기본은 4)</span></td></tr>
           <tr><td>체크포인트</td><td class="n">2,000 스텝 ≈ 12분마다 · 현재 108개 8.5GB</td></tr>
           <tr><td>GPU</td><td class="n">36.2 / 80 GB · 사용률 11%</td></tr>
@@ -714,11 +724,11 @@ while True:
 <footer>
   <p>참고</p>
   <ul>
-    <li><a href="https://arxiv.org/html/2410.21845v1">Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning (arXiv 2410.21845)</a></li>
+    <li><a href="https://arxiv.org/html/2410.21845v1">HIL-SERL 논문 — Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning (arXiv 2410.21845)</a></li>
     <li><a href="https://hil-serl.github.io/">HIL-SERL 프로젝트 페이지 — 영상 포함</a></li>
     <li><a href="https://github.com/rail-berkeley/hil-serl">rail-berkeley/hil-serl — 원본 구현</a></li>
-    <li><a href="https://huggingface.co/docs/lerobot/en/hilserl_sim">LeRobot — Train RL in Simulation</a></li>
-    <li><a href="https://github.com/huggingface/gym-hil">huggingface/gym-hil</a></li>
+    <li><a href="https://huggingface.co/docs/lerobot/en/hilserl_sim">LeRobot 문서 — 시뮬레이션에서 RL 학습하기 (Train RL in Simulation)</a></li>
+    <li><a href="https://github.com/huggingface/gym-hil">huggingface/gym-hil — 시뮬레이션 환경 원본</a></li>
   </ul>
   <p style="margin-top:14px">
     측정값 출처: <code>outputs/train/03_exp_b_assist</code> (831판 · 216,000 스텝 · 21.9시간) ·
