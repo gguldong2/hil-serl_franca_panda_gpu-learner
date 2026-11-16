@@ -386,7 +386,7 @@
         <tr><td class="k">D1</td><td>전달 방식</td><td><strong>우리 Docker 이미지는 만들지 않는다(A).</strong> RunPod 공식 템플릿 이미지로 pod 를 만들고, 처음엔 <code>01</code> → <code>02</code>, 멈췄다 켤 때마다 <code>01</code> 한 번</td><td><span class="st ok">결정 11-06</span></td><td>Docker 작업(이미지 빌드 · 업로드 · 템플릿 등록)이 없다. 폴더 구조 · 경로 · SSH 접속은 지금과 같다. 필요해지면 언제든 B(우리 이미지)로 옮길 수 있다(아래 참고)</td></tr>
         <tr><td class="k">D2</td><td>먼저 할 것</td><td>pod 1개에 스크립트로 설치해 <strong>검증</strong>(<a href="#first">12</a>)</td><td><span class="st dec">결정 대기</span></td><td>RunPod 에서만 생기는 문제(EGL · VRAM · torch.compile · 조작 지연)를 실제로 확인하려고</td></tr>
         <tr><td class="k">D3</td><td>버퍼 크기</td><td><strong>쓸 GPU 중 가장 작은 것에 맞춘 설정 하나</strong>로 통일</td><td><span class="st dec">결정 대기</span></td><td>버퍼 크기는 메모리만이 아니라 학습 동작(기억 범위 · 시연이 밀려나는 시점)을 바꾼다. 서버마다 다르면 결과를 서로 비교할 수 없다</td></tr>
-        <tr><td class="k">D4</td><td>쓸 GPU</td><td><strong>48 GB 이상이면 지금 설정 그대로.</strong> 32 GB(5090)·24 GB 급은 버퍼를 줄인 설정으로(<a href="#vram">03</a>)</td><td><span class="st dec">결정 대기</span></td><td>병목이 GPU 연산이 아니라 20 fps 시뮬레이터라 GPU 는 VRAM 과 그래픽 지원만 맞으면 된다(<a href="#compat">04</a>)</td></tr>
+        <tr><td class="k">D4</td><td>쓸 GPU</td><td><strong>48 GB 이상이면 지금 설정 그대로.</strong> 32 GB(5090)·24 GB 급은 버퍼를 줄인 설정으로(<a href="#vram">03</a>). RunPod 에서는 <strong>L40S</strong>(48 GB · 16 vCPU, 11-15 공시 Secure $1.09/h) 추천, 값이 우선이면 <strong>RTX A6000</strong>(48 GB · 9 vCPU, $0.69/h) — 최소 · 권장 기준과 비교 표는 <a href="05_runpod-runbook.html#pod">05 §02</a></td><td><span class="st dec">결정 대기</span></td><td>병목이 GPU 연산이 아니라 20 fps 시뮬레이터라 GPU 는 VRAM 과 그래픽 지원만 맞으면 된다(<a href="#compat">04</a>)</td></tr>
         <tr><td class="k">D5</td><td>프로세스 운영</td><td><strong>tmux.</strong> 지금은 <a href="05_runpod-runbook.html#tmux">05 §05</a> 의 세션 블록(창 4개 · 프로젝트 폴더 · <code>CFG</code> 를 세션에 미리 넣음)을 손으로 친다. 런처 <code>scripts/session.sh</code>(T3)는 필요해지면</td><td><span class="st dec">결정 대기</span> 런처만</td><td>SSH 가 끊겨도 학습이 계속 돈다(<a href="#session">10</a>)</td></tr>
         <tr><td class="k">D6</td><td>화면 접속</td><td><strong>SSH 터널</strong> (<code>-L 8088</code>)</td><td><span class="st dec">결정 대기</span></td><td>대시보드에 인증이 없다. 공개 URL 로 열면 아무나 로봇을 조작한다(<a href="#access">11</a>)</td></tr>
         <tr><td class="k">D7</td><td>OS</td><td>고를 수 있으면 <strong>Ubuntu 22.04</strong>. 24.04 만 있으면 그것도 된다</td><td><span class="st dec">결정 대기</span></td><td>기준 서버와 같으면 변수가 하나 준다. 24.04 대응은 11-06 에 고쳤지만 전체 설치를 돌려 보지는 않았다(<a href="#os">06</a>)</td></tr>
@@ -450,7 +450,8 @@ RUN bash /tmp/01.sh &amp;&amp; rm /tmp/01.sh
     <p>
       "Docker 로 한다" 는 것은 <strong>pod 가 만들어질 때 쓸 디스크 이미지를 우리가 준비한다</strong>는 뜻뿐이다.
       Docker 로 따로 띄우는 서버나 시스템은 없다. learner · actor · 대시보드는 지금처럼 SSH 셸에서 <code>bash scripts/…</code> 로 띄우는 보통 프로세스다.
-      RunPod 은 pod 안에서 Docker 를 또 돌리는 것(Docker-in-Docker)을 막는다.
+      RunPod 은 GPU pod 안에서 Docker 를 또 돌리는 것(Docker-in-Docker)을 지원하지 않는다 — 공식 문서: "RunPod 이 Docker 를 대신 돌리므로 pod 안에서 자기 Docker 나 Compose 를 띄울 수 없다", Docker-in-Docker 튜토리얼은 CPU pod 용뿐이다(11-15 확인).
+      <strong>막힌 것은 "pod 안에서 컨테이너를 또 띄우기" 이지, "우리 이미지를 pod 로 띄우기"(B)가 아니다.</strong> 우리가 B 를 안 하는 것은 불가능해서가 아니라 D1 = A 로 정했기 때문이다.
     </p>
   </div>
   <div class="cmd">
@@ -626,7 +627,7 @@ CFG=configs/train_config_panda_32gb.json bash scripts/train.sh learner</code></p
         <tr><td class="k">GPU VRAM</td><td>24 GB (버퍼 10,000 / 20,000, 약 19 GiB). 16 GB 도 버퍼를 RAM 에 두면 돈다(배치 뽑기 41배 느림)</td><td><strong>48 GB</strong> (약 37 GiB 사용)</td><td>80 GB — 버퍼를 더 키울 때만 의미</td><td>§03 · 실측 36.2 + 0.65 GiB</td></tr>
         <tr><td class="k">GPU 종류</td><td>OpenGL(EGL) 이 되는 NVIDIA. Blackwell(5090 등)은 cu128</td><td>소비자 · 워크스테이션 GPU, A100</td><td><strong>한 장.</strong> 한 학습을 여러 장에 나누는 기능이 없고, 한 서버에서 두 실험을 같이 돌리지도 못한다(<a href="03_scenario-online-offline-data-mixed.html#q11">03 Q11</a>)</td><td>§04</td></tr>
         <tr><td class="k">드라이버</td><td>525.60 (cu126) · 570.86 (cu128)</td><td>그 GPU 의 최신 안정 버전</td><td>—</td><td>§04 ②</td></tr>
-        <tr><td class="k">CPU</td><td>8 vCPU <span class="st est">추정</span></td><td>16~32 vCPU — 체크포인트 저장(CPU 영상 인코딩) 동안 learner 가 멈추므로 코어가 많을수록 덜 멈춘다</td><td>32 이상은 효과가 작을 것 <span class="st est">추정</span></td><td>이 서버 32코어에서 저장 1회 10~11분(<a href="03_scenario-online-offline-data-mixed.html#q16">03 Q16</a>). <code>env.sh</code> 기본 <code>OMP_NUM_THREADS=8</code></td></tr>
+        <tr><td class="k">CPU</td><td>8 vCPU <span class="st est">추정</span></td><td>16~32 vCPU — 체크포인트 저장(CPU 영상 인코딩) 동안 learner 가 멈추므로 코어가 많을수록 덜 멈춘다. 다만 저장은 전이를 하나씩 GPU → CPU 로 옮기는 파이썬 반복(<code>buffer.py</code> <code>to_lerobot_dataset</code>) + 영상 인코딩이라 코어 수에 다 비례하지는 않는다 <span class="st wait">실측 대기</span></td><td>32 이상은 효과가 작을 것 <span class="st est">추정</span></td><td>이 서버 32코어에서 저장 1회 10~11분(<a href="03_scenario-online-offline-data-mixed.html#q16">03 Q16</a>). <code>env.sh</code> 기본 <code>OMP_NUM_THREADS=8</code></td></tr>
         <tr><td class="k">RAM</td><td>32 GB <span class="st est">추정</span></td><td>64 GB <span class="st est">추정</span></td><td>—</td><td>버퍼가 GPU 에 있어 RAM 은 적게 든다. 실측 기록이 없다 <span class="st wait">실측 대기</span>. 버퍼를 RAM 에 두면(16 GB GPU) 버퍼 크기만큼 더 (40,000 / 40,000 이면 +30 GiB)</td></tr>
         <tr><td class="k">디스크 (볼륨)</td><td>30 GB — venv 7.5 GB + 저장소 · 시연 0.2 GB + 짧은 학습</td><td><strong>100 GB</strong></td><td>체크포인트를 정리하면 더 필요 없다</td><td>실측: 03 런(80만 스텝) 37 GB = 체크포인트 410개 33 GB + 로그 3.4 GB. learner 가 혼자 41시간 돈 UR5e 스모크 62 GB. 체크포인트 하나 81 MB</td></tr>
         <tr><td class="k"><code>/dev/shm</code></td><td>64 MB 면 될 것 <span class="st est">추정</span></td><td>—</td><td>—</td><td>화면 jpg(수십 KB)와 일시정지 파일뿐. RL 경로는 데이터로더 워커를 안 쓴다</td></tr>
@@ -829,6 +830,27 @@ CFG=configs/train_config_panda_32gb.json bash scripts/train.sh learner</code></p
       </tbody>
     </table>
   </div>
+  <h3 id="venv">왜 프로젝트 전용 venv 인가 — 템플릿의 PyTorch 를 쓰지 않는 이유</h3>
+  <p>
+    <code>02</code> 는 프로젝트 폴더 안에 <code>.venv</code>(Python 3.12 + torch 2.11.0 등, 7.5 GB)를 만든다. <strong>지금 서버도 같다</strong> — 시스템 Python 은 3.10 이고 torch 가 없다.
+    모든 <code>scripts/*.sh</code> 가 <code>scripts/env.sh</code> 를 불러 이 venv 를 켜므로 평소에는 보이지 않는다(11-16 확인).
+  </p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>이유</th><th>내용</th></tr></thead>
+      <tbody>
+        <tr><td class="k">버전을 고정해야 한다</td><td>lerobot 0.6.1 은 Python ≥ 3.12, torch ≥ 2.7 · &lt; 2.12 를 요구한다. RunPod PyTorch 이미지는 torch 2.6 · 2.7.1 · 2.8 · 2.9 · 2.12 · 2.13 이고 <strong>우리가 검증한 2.11 은 없다</strong>(Docker Hub <code>runpod/pytorch</code> 태그, 11-16 확인). 2.12 이상은 lerobot 이 받지 않고, 2.9 이하는 패치 13개 · torch.compile · 측정값을 확인하지 않은 버전이다</td></tr>
+        <tr><td class="k">멈춰도 남아야 한다 (RunPod)</td><td>템플릿의 시스템 Python 에 lerobot 등을 깔면 컨테이너 디스크에 들어가 pod 를 멈출 때마다 지워진다 — 매번 <code>02</code> 수준의 재설치. venv 는 <code>/workspace</code> 안이라 남는다</td></tr>
+        <tr><td class="k">섞이지 않아야 한다</td><td>venv 는 기본으로 시스템 패키지를 보지 않는다. 템플릿의 torch · Jupyter 와 서로 건드리지 않는다. 실제로 이 서버에서는 ROS Jazzy 가 <code>PYTHONPATH</code> 로 끼어들어 <code>env.sh</code> 가 그것을 지운다</td></tr>
+        <tr><td class="k">아끼는 시간이 작다</td><td>템플릿의 torch 를 빌려 써도 아끼는 것은 torch 내려받기(약 3 GB, 몇 분)뿐이다. lerobot · gym-hil · 패치 · 나머지 의존성은 그대로 깔아야 한다</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="sub">
+    남는 충돌 경로는 환경변수뿐이다(<code>PYTHONPATH</code> · <code>LD_LIBRARY_PATH</code>). <code>env.sh</code> 가 앞의 것을 지우고, torch 는 자기 CUDA 라이브러리를 들고 오며,
+    <code>02</code> 가 설치 끝에 실제 GPU 계산을 돌려 보고 안 되면 멈춘다. <code>--system-site-packages</code> 로 템플릿 torch 만 빌리는 절충은 버전이 어긋나서 권하지 않는다.
+  </p>
+
   <p class="sub">
     <code>server22/make_bundle.sh</code> 는 git 이전에 tar 로 옮기던 방식이다. 지금은 git clone 으로 대신한다.
   </p>
@@ -920,6 +942,25 @@ CFG=configs/train_config_panda_32gb.json bash scripts/train.sh learner</code></p
       </tbody>
     </table>
   </div>
+  <h4>RunPod 버튼마다 무엇이 일어나나</h4>
+  <p>
+    <strong>다시 켜는 것은 스냅샷 복원이 아니다.</strong> pod 를 다시 켜면 같은 물리 서버에서 <strong>템플릿 이미지로 컨테이너를 새로 만들고</strong> 볼륨(<code>/workspace</code>)을 다시 붙인다.
+    그래서 <code>/workspace</code> 밖은 이미지에 원래 있던 상태로 돌아가고(우리가 <code>01</code> 로 깐 것은 없다), <code>/workspace</code> 안은 멈추기 전 그대로다.
+  </p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>버튼</th><th>GPU</th><th><code>/workspace</code> 밖</th><th><code>/workspace</code></th><th>그 뒤 할 일</th></tr></thead>
+      <tbody>
+        <tr><td class="k">Stop → Start</td><td>Stop 때 놓는다. Start 때 그 서버의 GPU 가 다른 사람에게 갔으면 <strong>0 개</strong>로 켜질 수 있다</td><td>지워진다</td><td>남는다</td><td><code>preflight --fix</code>(→ <code>01</code>) · tmux 세션 · learner → actor</td></tr>
+        <tr><td class="k">Restart (켜져 있는 pod)</td><td>그대로 가진다 — 0 개가 될 일이 없다</td><td>지워진다(컨테이너를 다시 띄운다)</td><td>남는다</td><td>위와 같다</td></tr>
+        <tr><td class="k">Edit Pod 저장</td><td>—</td><td>지워진다(완전히 리셋)</td><td>남는다</td><td>위와 같다</td></tr>
+        <tr><td class="k">Terminate</td><td>놓는다</td><td>지워진다</td><td><strong>지워진다</strong></td><td>없음 — 필요한 것은 먼저 내려받는다</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="sub">근거: RunPod Pod 관리 · 저장소 종류 문서(11-15 확인). Restart 때 컨테이너 디스크가 지워진다는 것은 저장소 종류 문서의 "멈추거나 다시 시작하면 사라진다" 에 근거한다.
+     <code>02</code> 로 깐 무거운 것(venv 7.5 GB · <code>third_party</code> · 캐시)은 모두 <code>/workspace</code> 안이라 어느 경우에도 다시 깔지 않는다.</p>
+
   <div class="note warn">
     <span class="tag">멈추기 전</span>
     <ol class="steps">
@@ -1094,6 +1135,9 @@ ssh -L 8088:localhost:8088 root@&lt;POD_IP&gt; -p &lt;SSH_PORT&gt; -i ~/.ssh/id_
         <tr><td class="k">2026-11-06</td><td>§01 에 "pod 안에서 <code>docker run</code> 을 하지 않는다" 와 층 그림 추가(RunPod 은 Docker-in-Docker 를 막는다). §09 멈추기 전 단계에서 런북의 끄는 방법별 표로 연결.</td></tr>
         <tr><td class="k">2026-11-06</td><td>§01 에 "B 는 어떻게 하나"(템플릿의 Container Image 칸 · 빌드 · 업로드 · 템플릿 · Dockerfile 모양 · 주의점) 추가.</td></tr>
         <tr><td class="k">2026-11-06</td><td><strong>D1 결정: A — 우리 Docker 이미지를 만들지 않는다.</strong> §01 을 결정 기준으로 고치고 B 는 "참고" 로 남겼다. T8 보류, T18 추가(템플릿 이미지 태그 기록). §08 · §09 · §12 의 이미지 관련 문구 정리.</td></tr>
+        <tr><td class="k">2026-11-16</td><td>§07 에 "왜 프로젝트 전용 venv 인가"(이 서버도 <code>.venv</code> 사용, RunPod PyTorch 이미지에 torch 2.11 없음, 멈추면 시스템 패키지가 지워짐, 충돌 경로). §03b CPU 행에 저장이 코어 수에 다 비례하지 않는다는 점. D4 에 값 우선이면 A6000. 05 §02 를 "한눈에 — 넣을 값" 표 → RunPod 화면 순서(Secure Cloud · L40S × 1 · Runpod PyTorch CUDA 12.8 · Ubuntu 22.04 · Edit Template 의 디스크 · 포트 · 환경변수 · On-Demand · Connect 확인) → 이유 → GPU 고르는 근거(최소 · 권장 기준, GPU 비교 표)로 다시 짰고, 버퍼를 줄이면 잃는 것(기억 범위 46 → 23 → 11분, 시연 앞 개입 자리 20,388 → 10,388 → 388)을 넣었다.</td></tr>
+        <tr><td class="k">2026-11-15</td><td>05 §02 에 RunPod GPU 후보 표(VRAM · vCPU · RAM · 11-15 공시가, L40S 추천, MIG 피함, "RTX 6000" 이름 셋 구분)와 템플릿 고르는 법(Runpod PyTorch · CUDA 12.8 · Ubuntu 22.04 — 템플릿의 torch · CUDA 는 안 쓰고 드라이버 조건으로만 작용), <code>JUPYTER_PASSWORD</code>. 05 §03 에 JupyterLab 으로 파일 보기 · 고치기(code-server 는 실측 대기). D4 에 L40S 추천. 03 문서에 Q24(처음 1시간 개입 후 몇 시간 뒤 오르나 · 어울리는 사양).</td></tr>
+        <tr><td class="k">2026-11-15</td><td>§09 에 "RunPod 버튼마다 무엇이 일어나나"(Stop → Start · Restart · Edit Pod · Terminate) 추가 — 다시 켜기는 스냅샷 복원이 아니라 이미지로 새 컨테이너 + 볼륨 재부착. §01 의 Docker-in-Docker 문장을 공식 문서 기준으로(GPU pod 불가, CPU pod 만 튜토리얼) 고치고, 막힌 것은 B 가 아니라는 점을 명시.</td></tr>
         <tr><td class="k">2026-11-08</td><td><strong>05 RunPod 실행 절차 문서를 새로 만들었다</strong>(혼자 따라 하는 명령 순서). 이를 위해 스크립트를 고쳤다: <code>preflight.sh</code> 에 0번 항목(venv · gcc · xdotool · X 서버 · tmux)과 <code>--fix</code> 의 <code>01</code> 실행 · Xvfb 자동 시작(T17 · T19), <code>train.sh</code> 의 "설정을 읽지 못했다" 이유 안내와 새 런 <code>status</code> 오류(T20). D5 · D8 갱신(Panda 시연은 저장소에 있다), §05 · §07 · §09 · §10 · §12 를 05 에 맞췄다. 볼륨 권장 60 → 100 GB, 컨테이너 디스크 30 GB.</td></tr>
         <tr><td class="k">2026-11-06</td><td>§09 에 "멈춤 · 삭제 · 다시 켜기"(요금 · 남는 것 · 멈추기 전 · 다시 켠 뒤 · GPU 0 개) 추가. §01 Docker 절에 "고칠 때도 SSH 셸에서 바로, <code>docker exec</code> 는 쓸 일 없음" 을 보탰다.</td></tr>
       </tbody>
@@ -1105,6 +1149,8 @@ ssh -L 8088:localhost:8088 root@&lt;POD_IP&gt; -p &lt;SSH_PORT&gt; -i ~/.ssh/id_
     <li><a href="https://docs.runpod.io/pods/storage/types">RunPod 문서 — 저장소 종류 (Storage types)</a> (컨테이너 디스크 · 볼륨 · 네트워크 볼륨)</li>
     <li><a href="https://docs.runpod.io/pods/configuration/expose-ports">RunPod 문서 — 포트 열기 (Expose ports)</a> (HTTP 프록시 · TCP)</li>
     <li><a href="https://docs.runpod.io/pods/configuration/use-ssh">RunPod 문서 — SSH 접속 (Use SSH)</a> (full SSH · 공개 IP)</li>
+    <li><a href="https://docs.runpod.io/pods/manage-pods">RunPod 문서 — Pod 관리 (Manage Pods)</a> (Stop · Start · Restart · Edit 때 남는 것, GPU 0 개)</li>
+    <li><a href="https://docs.runpod.io/tutorials/pods/run-docker-in-docker">RunPod 문서 — Docker in Docker</a> (CPU pod 전용, GPU pod 불가)</li>
     <li><a href="https://docs.pytorch.org/rl/main/reference/generated/knowledge_base/MUJOCO_INSTALLATION.html">TorchRL 문서 — MuJoCo 설치 (MuJoCo installation)</a> (컨테이너에서 EGL 그래픽 라이브러리)</li>
     <li>Ubuntu 패키지 목록 대조: <code>archive.ubuntu.com/ubuntu/dists/{jammy,noble}/{main,universe}/binary-amd64/Packages.gz</code></li>
   </ul>
@@ -1112,7 +1158,7 @@ ssh -L 8088:localhost:8088 root@&lt;POD_IP&gt; -p &lt;SSH_PORT&gt; -i ~/.ssh/id_
 
 <footer>
   <p>
-    재현 핸드북 · hil-serl-mujoco-franka · 2026-11-06 작성 · 2026-11-08 갱신 ·
+    재현 핸드북 · hil-serl-mujoco-franka · 2026-11-06 작성 · 2026-11-16 갱신 ·
     LeRobot 0.6.1 / gym-hil 0.1.14 / MuJoCo 3.8.1 · 기준 A100 80GB · Ubuntu 22.04
   </p>
 </footer>

@@ -310,6 +310,7 @@
       <a href="#prep">내 PC</a>
       <a href="#pod">pod</a>
       <a href="#ssh">접속</a>
+      <a href="#jupyter">파일 보기</a>
       <a href="#install1">설치 ①</a>
       <a href="#tmux">tmux</a>
       <a href="#install2">설치 ②</a>
@@ -391,43 +392,125 @@ cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 
 
 <!-- ============================================================ -->
 <section id="pod">
-  <h2><span class="num">02</span>pod 만들기 (RunPod 화면)</h2>
+  <h2><span class="num">02</span>pod 만들기 — RunPod 화면에서 순서대로</h2>
+  <p>RunPod 웹 왼쪽 메뉴 <strong>Pods → + Deploy</strong> 에서 시작한다. 값만 빨리 보려면 이 표, 화면 순서는 바로 아래.</p>
 
-  <h3>GPU 고르기</h3>
+  <h3>한눈에 — 넣을 값</h3>
   <div class="tw">
     <table>
-      <thead><tr><th>GPU 메모리</th><th>예</th><th>학습 설정</th></tr></thead>
+      <thead><tr><th>칸</th><th>값</th><th>한 줄 이유</th></tr></thead>
       <tbody>
-        <tr><td class="k">48 GB 이상</td><td>RTX A6000 · L40S · A100 · H100</td><td>버퍼 그대로 (40,000 / 40,000) — <a href="#config">07</a> 에서 버퍼 수정 건너뜀</td></tr>
-        <tr><td class="k">32 GB</td><td>RTX 5090</td><td>온라인 20,000 / 오프라인 30,000</td></tr>
-        <tr><td class="k">24 GB</td><td>RTX 4090 · L4 · A10</td><td>온라인 10,000 / 오프라인 20,000</td></tr>
-        <tr><td class="k">24 GB 미만</td><td>—</td><td>쓰지 않는다. 시연(19,612 프레임)을 담을 오프라인 버퍼도 안 들어간다</td></tr>
+        <tr><td class="k">Cloud</td><td><strong>Secure Cloud</strong> (Community 는 싸지만 공개 IP 확인 필요)</td><td>대시보드 터널 · 파일 내려받기에 공개 IP 가 필요하다</td></tr>
+        <tr><td class="k">GPU · 개수</td><td><strong>L40S × 1</strong> — 값이 우선이면 RTX A6000 × 1</td><td>48 GB 면 학습 설정을 안 바꾼다. 근거는 <a href="#gpu-choice">아래</a></td></tr>
+        <tr><td class="k">Template</td><td><strong>Runpod PyTorch</strong></td><td>SSH · JupyterLab 이 미리 들어 있다</td></tr>
+        <tr><td class="k">└ CUDA</td><td><strong>12.8</strong> (태그의 <code>cu1281</code>)</td><td>드라이버 570 이상 서버 — 우리 torch(cu126 · cu128) 둘 다 된다. 서버 고를 폭이 가장 넓다</td></tr>
+        <tr><td class="k">└ Ubuntu</td><td><strong>22.04</strong> (태그의 <code>ubuntu2204</code>) · 없으면 24.04</td><td>지금 서버와 같은 OS</td></tr>
+        <tr><td class="k">└ PyTorch 버전</td><td><strong>상관없다</strong> — 기본값 그대로</td><td>템플릿의 torch 는 안 쓴다. <code>02</code> 가 venv 에 2.11.0 을 따로 깐다(<a href="04_reproduction-handbook.html#venv">이유</a>)</td></tr>
+        <tr><td class="k">Container Disk</td><td><strong>30 GB</strong></td><td>apt 패키지 · pip 캐시. 멈추면 지워지는 디스크</td></tr>
+        <tr><td class="k">Volume Disk · Mount Path</td><td><strong>100 GB</strong> · <code>/workspace</code></td><td>프로젝트 · venv · 체크포인트. 멈춰도 남는다</td></tr>
+        <tr><td class="k">Expose HTTP Ports</td><td><code>8888</code> 그대로 — <strong>8088 은 넣지 않는다</strong></td><td>8888 은 JupyterLab. 대시보드는 인증이 없어 SSH 터널로만 본다</td></tr>
+        <tr><td class="k">Expose TCP Ports</td><td><code>22</code></td><td>"SSH over exposed TCP" — 터널 · scp 가 된다</td></tr>
+        <tr><td class="k">Environment Variables</td><td><code>NVIDIA_DRIVER_CAPABILITIES</code> = <code>all</code><br><code>JUPYTER_PASSWORD</code> = 긴 비밀번호</td><td>카메라 렌더(EGL)용 그래픽 라이브러리 · JupyterLab 잠금</td></tr>
+        <tr><td class="k">Pricing</td><td><strong>On-Demand</strong></td><td>Spot 은 학습 중에 회수될 수 있다</td></tr>
       </tbody>
     </table>
   </div>
-  <p class="sub">근거와 계산식: <a href="04_reproduction-handbook.html#vram">04 핸드북 §03</a>. 실측은 A100 에서 learner 36.2 GiB(버퍼 40,000 / 40,000).</p>
 
-  <h3>Deploy 화면에서</h3>
-  <div class="tw">
-    <table>
-      <thead><tr><th>칸</th><th>넣을 것</th><th>이유</th></tr></thead>
-      <tbody>
-        <tr><td class="k">요금 종류</td><td><strong>On-Demand</strong></td><td>Spot(Interruptible)은 중간에 회수될 수 있다</td></tr>
-        <tr><td class="k">Additional filters → CUDA</td><td>RTX 5090 이면 <strong>12.8 이상</strong></td><td>5090 용 torch(cu128)는 드라이버 570.86 이상이 필요하다. 이 필터가 그런 서버만 보여 준다</td></tr>
-        <tr><td class="k">템플릿</td><td>공식 <strong>Runpod PyTorch</strong> — 이름에 Ubuntu 22.04 가 있는 것 (24.04 도 된다)</td><td>SSH 서버가 미리 설정되어 있다. <strong>템플릿 이미지 이름 · 태그를 적어 둔다</strong>(<a href="04_reproduction-handbook.html#todo">04 T18</a>)</td></tr>
-        <tr><td class="k">Edit Template → Container Disk</td><td><strong>30 GB</strong></td><td>기본 20 GB. apt 패키지와 pip 내려받기 캐시가 여기 쌓인다. 멈추면 지워지는 디스크다</td></tr>
-        <tr><td class="k">Edit Template → Volume Disk</td><td><strong>100 GB</strong>, 마운트 경로 <code>/workspace</code></td><td>프로젝트 · venv(7.5 GB) · 캐시(5.5 GB) · 체크포인트(2,000 스텝마다 81 MB)가 여기. 멈춰도 남는다. 60 GB 로도 되지만 체크포인트를 자주 지워야 한다(<a href="#disk">14</a>)</td></tr>
-        <tr><td class="k">Edit Template → Expose TCP Ports</td><td><code>22</code> 가 있는지 확인</td><td>대시보드 터널과 파일 내려받기(scp)는 "SSH over exposed TCP" 로만 된다</td></tr>
-        <tr><td class="k">Edit Template → Environment Variables</td><td><code>NVIDIA_DRIVER_CAPABILITIES</code> = <code>all</code></td><td>카메라 렌더(EGL)에 쓰는 GPU 그래픽 라이브러리를 컨테이너에 넣어 달라는 뜻. 없어도 <code>preflight --fix</code> 가 대신 받는다</td></tr>
-        <tr><td class="k">HTTP 포트</td><td>건드리지 않는다. <strong>8088 을 넣지 않는다</strong></td><td>대시보드에는 인증이 없다. HTTP 포트로 열면 주소를 아는 누구나 로봇을 조작한다</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <p>Deploy 를 누르고, pod 의 <strong>Connect</strong> 탭에 <strong>"SSH over exposed TCP"</strong> 명령(<code>ssh root@IP -p 포트 …</code>)이 보이면 준비 끝이다. 그 줄이 없으면 그 서버에 공개 IP 가 없는 것이다 — pod 를 지우고 다른 서버로 만든다 <span class="st est">추정</span>.</p>
+  <h3>순서대로</h3>
+  <p class="sub">버튼 이름은 RunPod 화면이 바뀌면 조금 다를 수 있다 <span class="st est">추정</span>. 칸의 뜻은 위 표와 같다.</p>
+  <ol class="steps">
+    <li><strong>Pods → + Deploy.</strong> 맨 위에서 <strong>Secure Cloud</strong> 를 고른다.</li>
+    <li><strong>GPU 를 고른다</strong> — 목록에서 <strong>L40S</strong>(또는 RTX A6000), GPU Count <strong>1</strong>.
+        RTX 5090 · RTX PRO 6000 같은 Blackwell 이면 Additional filters → CUDA Version 을 12.8 이상으로(템플릿을 CUDA 12.8 로 고르면 저절로 맞는다).</li>
+    <li><strong>템플릿</strong> — Change Template → 공식 <strong>Runpod PyTorch</strong>. 버전을 고르는 칸이 있으면 <strong>CUDA 12.8 · Ubuntu 22.04</strong>, PyTorch 는 기본값.
+        이미지 이름이 <code>runpod/pytorch:…-cu1281-torch…-ubuntu2204</code> 꼴이면 맞다. <strong>이 이미지 이름을 적어 둔다</strong>(<a href="04_reproduction-handbook.html#todo">04 T18</a>).
+        이름이 "Ubuntu" 뿐인 템플릿은 JupyterLab 이 없을 수 있어 고르지 않는다.</li>
+    <li><strong>Edit Template</strong>(이 pod 에만 적용)을 눌러:
+      <ul>
+        <li>Container Disk <strong>30</strong> GB · Volume Disk <strong>100</strong> GB · Volume Mount Path <code>/workspace</code></li>
+        <li>Expose HTTP Ports 는 <code>8888</code> 그대로 · Expose TCP Ports 에 <code>22</code> 가 있는지</li>
+        <li>Environment Variables 에 <code>NVIDIA_DRIVER_CAPABILITIES</code> = <code>all</code>, <code>JUPYTER_PASSWORD</code> = 긴 비밀번호 추가</li>
+        <li>Set Overrides(저장)</li>
+      </ul></li>
+    <li><strong>Pricing 은 On-Demand.</strong> "Start Jupyter Notebook" 같은 체크박스가 보이면 켠다 <span class="st est">추정</span>.</li>
+    <li><strong>Deploy On-Demand</strong> → 상태가 <strong>Running</strong> 이 될 때까지 기다린다(이미지를 받느라 몇 분).</li>
+    <li><strong>Connect 탭</strong>에서 두 가지를 확인한다:
+        ① <strong>"SSH over exposed TCP"</strong> 명령(<code>ssh root@IP -p 포트 …</code>) — 이것을 <a href="#ssh">03</a> 에서 쓴다.
+        ② HTTP Services 의 <strong>Jupyter Lab</strong> 링크 — 웹에서 파일 보기(<a href="#jupyter">03</a>).
+        ①이 없으면 그 서버에 공개 IP 가 없는 것이다 — pod 를 지우고 다른 서버로 다시 만든다 <span class="st est">추정</span>.</li>
+  </ol>
+
+  <h3>템플릿 · CUDA 를 이렇게 고르는 이유</h3>
+  <ul>
+    <li><strong>템플릿의 PyTorch · CUDA 는 쓰지 않는다.</strong> <code>02</code> 가 <code>/workspace</code> 의 프로젝트 venv 에 CUDA 런타임이 든 torch 2.11.0 을 따로 깐다.
+        RunPod PyTorch 이미지에는 2.11 이 없고, 시스템에 깐 것은 pod 를 멈추면 지워진다(<a href="04_reproduction-handbook.html#venv">04 §07</a>).</li>
+    <li><strong>템플릿의 CUDA 버전은 "그 버전을 지원하는 드라이버의 서버에만 뜬다" 는 조건으로만 작용한다.</strong> 12.8 이면 드라이버 570 이상 → cu126 · cu128 둘 다 된다.
+        12.9 · 13.x 도 되지만 고를 수 있는 서버가 좁아질 뿐 얻는 것이 없다 <span class="st est">추정</span>.</li>
+    <li><strong>Ubuntu 22.04</strong> 는 기준 서버와 같다. 24.04 도 <code>01</code> 이 맞춰 두었지만 전체 설치는 아직 돌려 보지 않았다(<a href="04_reproduction-handbook.html#os">04 §06</a>).</li>
+  </ul>
   <div class="note warn">
     <span class="tag">만든 뒤 설정을 바꾸면</span>
     <p>Edit Pod 로 환경변수 · 디스크를 바꿔 저장하면 pod 가 다시 시작되고 <code>/workspace</code> 밖이 지워진다. 그 뒤에는 <a href="#restart">12 다시 켤 때</a>와 같다.</p>
   </div>
+
+  <h3 id="gpu-choice">GPU 고르는 근거</h3>
+  <p>
+    <strong>GPU pod</strong> 를 고른다. CPU pod 는 GPU 가 없어 learner 와 카메라 렌더가 CPU 로 돌아 학습이 안 된다.
+    vCPU · RAM 은 GPU 종류에 딸려 오므로 따로 고르지 않는다 — 아래 표에서 같이 본다.
+  </p>
+  <h4>기준 — 최소와 권장</h4>
+  <div class="tw">
+    <table>
+      <thead><tr><th>항목</th><th>최소 (설정을 줄여서 돈다)</th><th>권장 (지금 설정 그대로)</th></tr></thead>
+      <tbody>
+        <tr><td class="k">GPU VRAM</td><td>24 GB — 버퍼 10,000 / 20,000 (약 19 GiB)</td><td><strong>48 GB</strong> — 버퍼 40,000 / 40,000 (실측 37 GiB)</td></tr>
+        <tr><td class="k">vCPU</td><td>8 <span class="st est">추정</span></td><td>16 이상 <span class="st est">추정</span> — 체크포인트 저장이 CPU 일이다</td></tr>
+        <tr><td class="k">RAM</td><td>32 GB <span class="st est">추정</span></td><td>64 GB <span class="st est">추정</span> — 버퍼가 GPU 에 있어 RAM 은 적게 든다. 저장도 한 프레임씩 옮긴다</td></tr>
+        <tr><td class="k">디스크</td><td>볼륨 60 GB · 컨테이너 30 GB</td><td>볼륨 100 GB · 컨테이너 30 GB</td></tr>
+        <tr><td class="k">드라이버</td><td colspan="2">Ampere · Ada 는 525.60 이상, Blackwell(5090 · RTX PRO 6000)은 570.86 이상 — 템플릿을 CUDA 12.8 로 고르면 저절로 맞는다</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr><th>버퍼를 줄이면 잃는 것</th><th>48 GB · 40,000 / 40,000</th><th>32 GB · 20,000 / 30,000</th><th>24 GB · 10,000 / 20,000</th></tr></thead>
+      <tbody>
+        <tr><td class="k">온라인 버퍼의 기억 범위 (초당 14.6 전이)</td><td>약 46분</td><td>약 23분</td><td>약 11분</td></tr>
+        <tr><td class="k">시연(19,612)을 밀어내기 전 개입이 들어갈 자리</td><td>20,388</td><td>10,388</td><td><strong>388</strong> — 개입하자마자 시연이 밀려난다</td></tr>
+        <tr><td class="k">기준 런(03)과 비교</td><td>그대로 비교된다</td><td colspan="2">학습 동작이 달라져 시간 · 성공률을 바로 비교할 수 없다(<a href="03_scenario-online-offline-data-mixed.html#q17">03 Q17</a>)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="sub">24 GB 는 스모크 설정(5,000 / 40,000, 약 24 GiB)도 그대로는 안 들어간다 <span class="st est">추정</span>.</p>
+
+  <h4>GPU 비교 — L40S 기준</h4>
+  <div class="tw">
+    <table>
+      <thead><tr><th>GPU</th><th>세대</th><th>VRAM</th><th>버퍼 · 예상 사용</th><th>vCPU · RAM</th><th>시간당 Secure / Community</th><th>판단</th></tr></thead>
+      <tbody>
+        <tr><td class="k"><strong>L40S</strong></td><td>Ada</td><td>48 GB</td><td>그대로 · 37 GiB</td><td>16 · 94 GB</td><td>$1.09 / $0.79</td><td><strong>권장을 VRAM · vCPU 둘 다 채우는 가장 싼 것</strong></td></tr>
+        <tr><td class="k">RTX 6000 Ada</td><td>Ada</td><td>48 GB</td><td>그대로 · 37 GiB</td><td>10 · 167 GB</td><td>$1.09 / $0.74</td><td>L40S 와 같은 값에 vCPU 만 적다</td></tr>
+        <tr><td class="k">RTX A6000</td><td>Ampere</td><td>48 GB</td><td>그대로 · 37 GiB</td><td>9 · 50 GB</td><td>$0.69 / $0.33</td><td><strong>가성비 최선.</strong> 설정 그대로이고 기준 A100 과 같은 세대(cu126). 약점은 vCPU — 저장 정지가 길어질 수 있다 <span class="st wait">실측 대기</span></td></tr>
+        <tr><td class="k">A40</td><td>Ampere</td><td>48 GB</td><td>그대로 · 37 GiB</td><td>9 · 50 GB</td><td>$0.59 / $0.35</td><td>A6000 과 같다</td></tr>
+        <tr><td class="k">A100 80GB PCIe · SXM</td><td>Ampere</td><td>80 GB</td><td>그대로 · 37 GiB</td><td>8 · 117 GB / 16 · 125 GB</td><td>$2.09 / $1.19 · $2.19 / $1.39</td><td>기준 서버와 같은 GPU — 가장 충실한 재현. 두 배쯤 비싸다</td></tr>
+        <tr><td class="k">RTX PRO 6000</td><td>Blackwell</td><td>96 GB</td><td>그대로 · 37 GiB</td><td>16 · 188 GB</td><td>$2.69 / $1.69</td><td>남는 VRAM 을 쓸 데가 없다</td></tr>
+        <tr><td class="k">RTX 5090</td><td>Blackwell</td><td>32 GB</td><td>20,000 / 30,000 · 약 26 GiB</td><td>9 · 35 GB</td><td>$1.39 / $0.69</td><td>돌지만 이득이 없다 — 버퍼를 줄여야 하고 Secure 값은 L40S 보다 비싸다. Blackwell 에서 torch.compile 은 미검증</td></tr>
+        <tr><td class="k">RTX 4090</td><td>Ada</td><td>24 GB</td><td>10,000 / 20,000 · 약 19 GiB</td><td>6 · 41 GB</td><td>$0.89 / $0.34</td><td>최소선. vCPU 6 은 최소 미달</td></tr>
+        <tr><td class="k">L4</td><td>Ada</td><td>24 GB</td><td>10,000 / 20,000 · 약 19 GiB</td><td>12 · 50 GB</td><td>$0.69 / $0.44</td><td>최소선</td></tr>
+        <tr><td class="k">MIG 조각 (예: RTX PRO 6000 MIG 48GB)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>쓰지 않는다. GPU 를 쪼갠 것이라 카메라 렌더(EGL)가 되는지 확인되지 않았다 <span class="st est">추정</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul class="sub">
+    <li>GPU 가 빠르다고 학습이 빨라지지 않는다 — actor 가 사람이 끼어들 수 있는 실시간 20 fps 로 돌고, A100 사용률은 11~31% 였다. 다른 GPU 에서 learner 1스텝 속도는 실측 대기.</li>
+    <li>vCPU 가 많으면 체크포인트 저장(2,000 스텝마다, 버퍼가 차면 이 서버 32코어에서 10~11분 learner 정지)이 짧아질 수 있다. 다만 저장은 전이를 하나씩 옮기는 파이썬 반복 + 영상 인코딩이라 코어 수에 다 비례하지는 않는다 <span class="st wait">실측 대기</span>. <code>save_freq</code> 를 늘리면 vCPU 가 적은 GPU 의 약점이 준다(<a href="04_reproduction-handbook.html#todo">04 T16</a>).</li>
+    <li>가격 · vCPU · RAM 은 runpod.io/pricing 의 2026-11-15 공시값이다. 자주 바뀌니 Deploy 화면의 값을 본다.</li>
+    <li>"RTX 6000" 은 이름이 셋이다 — <strong>RTX 6000 Ada</strong>(48 GB) · <strong>RTX PRO 6000</strong>(96 GB, Blackwell) · <strong>RTX A6000</strong>(48 GB, Ampere).</li>
+    <li>세대는 고를 필요가 없다. <code>02</code> 가 Ampere · Ada 는 cu126, Blackwell 은 cu128 을 알아서 고른다.</li>
+    <li>Community 가 싸지만 공개 IP 가 없는 서버가 섞여 있을 수 있다 — 위 순서 7번에서 "SSH over exposed TCP" 가 보이는지로 확인한다.</li>
+    <li>VRAM 계산: 약 7 GiB + (온라인 + 오프라인 칸 수) × 384 KiB + actor 0.65 GiB. 근거는 <a href="04_reproduction-handbook.html#vram">04 핸드북 §03</a>.</li>
+  </ul>
+
 </section>
 
 <!-- ============================================================ -->
@@ -449,6 +532,23 @@ df -h /workspace                    <span class="c"># 볼륨 크기 (100G 근처
 grep PRETTY_NAME /etc/os-release    <span class="c"># Ubuntu 22.04 또는 24.04</span>
 nproc                               <span class="c"># vCPU 수 — 체크포인트 저장 시간에 영향</span></code></pre>
   </div>
+
+  <h3 id="jupyter">브라우저로 파일 보기 · 고치기 — JupyterLab</h3>
+  <p>VS Code 없이 웹에서 파일을 보고 고친다. 공식 PyTorch 템플릿에 JupyterLab 이 들어 있어 따로 깔 것이 없다.</p>
+  <ol class="steps">
+    <li>pod 의 <strong>Connect → HTTP Services → Jupyter Lab</strong>(포트 8888). 비밀번호는 <code>JUPYTER_PASSWORD</code> 에 넣은 값. 처음 켤 때는 1분쯤 걸린다 — 빈 화면이면 기다렸다 새로 고침.</li>
+    <li>왼쪽 파일 탐색기에서 <code>/workspace/hil-serl-mujoco-franka</code> 로 간다.</li>
+    <li><code>.py</code> · <code>.json</code> · <code>.sh</code> 는 두 번 누르면 편집기로 열린다(<kbd>Ctrl</kbd>+<kbd>S</kbd> 저장). <code>docs/*.html</code> 문서는 그대로 그려져 보인다(복사 버튼까지 쓰려면 위의 "Trust HTML"). <code>.md</code> 는 오른쪽 클릭 → Open With → Markdown Preview.</li>
+    <li>File → New → Terminal 로 pod 셸도 열린다. 여기서 <code>tmux attach -t hil</code> 하면 SSH 창과 같은 learner · actor 창이 보인다.</li>
+  </ol>
+  <ul class="sub">
+    <li><code>/workspace</code> 안에서 고친 것만 pod 를 멈춰도 남는다.</li>
+    <li>대시보드(8088)는 여기서 열지 않는다 — 그대로 SSH 터널(<code>-L 8088</code>)로 본다.</li>
+    <li>VS Code 모양 그대로가 필요하면 브라우저용 VS Code(code-server)를 <code>/workspace</code> 에 깔아 SSH 터널로 여는 방법도 있다 <span class="st wait">실측 대기</span>:
+        <code>curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/workspace/.code-server</code> 뒤
+        tmux 새 창에서 <code>/workspace/.code-server/bin/code-server --bind-addr 127.0.0.1:8443 --auth none /workspace/hil-serl-mujoco-franka</code>,
+        내 PC 의 SSH 에 <code>-L 8443:localhost:8443</code> 을 더 붙이고 <code>http://localhost:8443/</code>. pod 안 127.0.0.1 에만 열리므로 SSH 터널로만 들어온다.</li>
+  </ul>
 </section>
 
 <!-- ============================================================ -->
@@ -684,6 +784,7 @@ tmux attach -t hil</code></pre>
 <section id="restart">
   <h2><span class="num">12</span>다시 켤 때 (Start)</h2>
   <p>RunPod 화면에서 Start 한 뒤, Connect 탭에서 SSH 명령을 <strong>다시 복사한다</strong> — IP · 포트가 바뀌었을 수 있다 <span class="st est">추정</span>.</p>
+  <p class="sub">다시 켜는 것은 스냅샷 복원이 아니라 템플릿 이미지로 컨테이너를 새로 만드는 것이다. <strong>Restart 버튼 · Edit Pod 저장 뒤에도 똑같이</strong> 이 절차를 따른다(<code>/workspace</code> 밖이 지워진다). 버튼별 차이는 <a href="04_reproduction-handbook.html#stop">04 핸드북 §09</a>.</p>
   <div class="cmd">
     <div class="cmd-head"><span>① 접속 · 환경 복구 (1~5분)</span><button type="button" class="copy">복사</button></div>
 <pre><code>ssh -L 8088:localhost:8088 root@&lt;POD_IP&gt; -p &lt;SSH_PORT&gt; -i ~/.ssh/id_ed25519
@@ -767,7 +868,7 @@ cd /workspace/hil-serl-mujoco-franka</code></pre>
 
 <footer>
   <p>
-    RunPod 실행 절차 · hil-serl-mujoco-franka · 2026-11-08 작성 ·
+    RunPod 실행 절차 · hil-serl-mujoco-franka · 2026-11-08 작성 · 2026-11-16 갱신 ·
     결정과 근거는 <a href="04_reproduction-handbook.html">04 재현 핸드북</a>, 이 서버의 상세 운영은 <a href="01_place-cube-runbook.html">01 런북</a>
   </p>
 </footer>

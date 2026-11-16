@@ -382,7 +382,7 @@
         <tr><td class="k">버퍼에 무엇이 들어가고 얼마나 남나</td><td><a href="#q4">Q4</a> 버퍼는 어디에? 처음엔 비어 있나 · 파일인가 · 시연은 어디서 읽나 · 원조와 비교· <a href="#q18">Q18</a> 온라인에는 무엇이(실패 · 개입 · 멈추면)? · <a href="#q15">Q15</a> 시연은 개입에 밀려 안 쓰이게 되나? · <a href="#q19">Q19</a> 실패가 성공을 밀어내면 손해 아닌가?</td></tr>
         <tr><td class="k">버퍼 크기</td><td><a href="#q14">Q14</a> 크면 무엇이 달라지나? · <a href="#q17">Q17</a> "기억 범위" 란? 줄이면 학습량이 는다는 말은 맞나?</td></tr>
         <tr><td class="k">학습 시간 · 정책 반영</td><td><a href="#q13">Q13</a> 큐에서 순서대로 꺼내 학습하나? 언제? · <a href="#q16">Q16</a> 학습해서 actor 에 반영되기까지 얼마나? 1시간이면? 5090 이면?</td></tr>
-        <tr><td class="k">개입</td><td><a href="#q6">Q6</a> 개입 없이 기다리면 되나? · <a href="#q7">Q7</a> 개입 효과가 누적되나? · <a href="#q8">Q8</a> 시연 · 개입만큼만 배우나?</td></tr>
+        <tr><td class="k">개입</td><td><a href="#q6">Q6</a> 개입 없이 기다리면 되나? · <a href="#q7">Q7</a> 개입 효과가 누적되나? · <a href="#q8">Q8</a> 시연 · 개입만큼만 배우나? · <a href="#q24">Q24</a> 처음 1시간 개입하면 몇 시간 뒤 오르나? 어울리는 사양은?</td></tr>
         <tr><td class="k">운영</td><td><a href="#q9">Q9</a> actor 없이 learner 만 돌면? · <a href="#q20">Q20</a> <strong>정리</strong> — 성공률 낮을 때 learner 만? actor 가 꼭 있어야? 성공이 많으면? 일시정지는? · <a href="#q10">Q10</a> 대시보드는 무엇을 보나? · <a href="#q11">Q11</a> 실험 구분 · 동시 실행 · <a href="#q12">Q12</a> 운영 순서 · <a href="#q22">Q22</a> 실험끼리 무엇을 섞어도 되나? · <a href="#q23">Q23</a> 쉬거나 끝낼 때 learner 도 끄나? 순서 · 시간 · 강제 종료</td></tr>
         <tr><td class="k">다른 문서</td><td>하드웨어 사양(최소 · 권장 · 상한) · VRAM → <a href="04_reproduction-handbook.html#spec">04 핸드북 §03b</a> · <a href="04_reproduction-handbook.html#vram">§03</a> &nbsp;|&nbsp; 끄는 방법별로 깨지는가 → <a href="01_place-cube-runbook.html#stop-learner">런북 08</a></td></tr>
       </tbody>
@@ -1417,6 +1417,39 @@ learner.py:682-701      체크포인트 때 두 버퍼를 dataset/ · dataset_of
     개입 예산을 어떻게 나눠 쓸지는 같은 문서 Q2 · Q3.
   </p>
 
+  <h3 id="q24">Q24. 시연을 만든 뒤 처음 1시간쯤 계속 개입해 주면, 몇 시간 뒤에 성공률이 오르나? 거기에 어울리는 사양은?</h3>
+  <p>
+    <strong>기록상 "처음 1시간만" 으로는 오르지 않았다.</strong> 오른 것은 개입을 다시 시작한 뒤 짧게 끊어 이어 간 지 5~8시간째다.
+    런 하나(03 런)의 기록이라 <span class="st est">추정</span>이다. 숫자는 <a href="#q6">Q6</a> 표에서 시간만 다시 셌다.
+  </p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>구간</th><th>실시간</th><th>개입 방식</th><th>정책 혼자 성공률</th></tr></thead>
+      <tbody>
+        <tr><td class="k">처음 (1–100판)</td><td>0 → 1.0h</td><td>판의 36% 에서, 개입률 31% — 거의 대신 해 줌</td><td>0%</td></tr>
+        <tr><td class="k">개입 끊음 (101–400판)</td><td>1.0 → 16.9h</td><td>없음</td><td>0% — 16시간 내내</td></tr>
+        <tr><td class="k">다시 개입 (401–800판)</td><td>16.9 → 21.6h (+4.7h)</td><td>막힐 때만 짧게, 개입률 5.6%</td><td>5.5%</td></tr>
+        <tr><td class="k">이어서 (801–1,200판)</td><td>→ 24.2h (+7.3h)</td><td>개입률 9.3%</td><td><strong>59.4%</strong></td></tr>
+        <tr><td class="k">개입 끝 (1,201–2,000판)</td><td>→ 25.1h (+8.2h)</td><td>0%</td><td><strong>97.5%</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul>
+    <li><strong>1시간 몰아서 개입한 뒤 손을 떼면</strong> 이 기록대로라면 0% 에 머문다. 왜 안 넘었는지는 <a href="#q7">Q7</a> 의 가설 둘 — 크리틱이 아직 덜 배운 초반이었다 / 대신 해 주는 식의 개입이었다.</li>
+    <li><strong>계획은 "하루"로 잡는다.</strong> 학습을 띄운 뒤 6~8시간 동안 사람이 대시보드를 보다가 막히는 순간에만 짧게 끼어들고(개입률 5~10%), 혼자 성공률이 50% 를 넘어 유지되면 멈춘다(<a href="#q6">Q6</a> 요령). 이 기록에서 그 구간은 60% 까지 약 7시간, 97% 까지 약 8시간이었다.</li>
+    <li><strong>처음부터 그렇게 하면 더 빨리 넘을지는 모른다.</strong> 두 번째 개입은 이미 최적화 17만 스텝을 돈 크리틱 위에서 시작했다. 그 준비가 필요했다면(가설 ①) 처음부터 해도 그만큼 더 걸린다. 그래서 범위로 말하면 8시간 남짓 ~ 25시간이다.</li>
+  </ul>
+  <div class="note">
+    <span class="tag">어울리는 사양 — GPU 가 빠르다고 시간이 줄지 않는다</span>
+    <p>
+      actor 는 사람이 끼어들 수 있게 실시간 20 fps 로 돌고, A100 사용률은 11~31% 였다. 시간에 영향을 주는 것은 셋이다.
+      ① <strong>VRAM 48 GB 이상</strong> — 기준 런과 같은 버퍼(40,000 / 40,000)라야 위 표를 참고할 수 있다. 버퍼를 줄이면 기억 범위가 달라진다(<a href="#q17">Q17</a>).
+      ② <strong>vCPU 가 많을수록</strong> — 체크포인트 저장(CPU 영상 인코딩) 동안 learner 가 멈춘다(<a href="#q16">Q16</a>). 위 표의 16.9 → 24.2h 에 최적화가 5.9만 스텝(초당 2.2)밖에 안 된 이유다.
+      ③ <strong>조작 지연이 낮은 지역</strong> — 개입 품질.
+      RunPod 이면 L40S(48 GB · 16 vCPU)가 맞는다 — 10시간이면 Secure 약 $11, Community 약 $8(2026-11-15 공시가). 값이 우선이면 RTX A6000(48 GB · 9 vCPU, 10시간 약 $7 / $3.3): 설정은 그대로이고 저장 정지만 길어질 수 있다. GPU 목록은 <a href="05_runpod-runbook.html#pod">05 §02</a>.
+    </p>
+  </div>
+
   <h3 id="q8">Q8. 오프라인 버퍼 40,000칸이 시연·개입으로만 채워지면 learner 는 그 데이터만큼만 배우나? advantage 같은 게 있나?</h3>
   <p><strong>아니다. learner 는 시연을 흉내 내지 않고 보상을 최대화한다.</strong></p>
   <div class="cmd">
@@ -2041,7 +2074,7 @@ bash scripts/train.sh stop</code></pre>
 
 <footer>
   <p>
-    버퍼·배치 시나리오 · hil-serl-mujoco-franka · 2026-11-02 작성 · 2026-11-04 Q5–Q10 · 2026-11-06 Q11–Q19 · 2026-11-08 Q20 · Q21 추가, Q4(버퍼 위치 · 시연 경로 · 원조와 비교) · Q11(설정 · 지우기) 보강, Q22 · Q23 추가 ·
+    버퍼·배치 시나리오 · hil-serl-mujoco-franka · 2026-11-02 작성 · 2026-11-04 Q5–Q10 · 2026-11-06 Q11–Q19 · 2026-11-08 Q20 · Q21 추가, Q4(버퍼 위치 · 시연 경로 · 원조와 비교) · Q11(설정 · 지우기) 보강, Q22 · Q23 추가 · 2026-11-15 Q24 추가 ·
     LeRobot 0.6.1 / gym-hil 0.1.14 / MuJoCo 3.8.1 / A100 80GB
   </p>
 </footer>
