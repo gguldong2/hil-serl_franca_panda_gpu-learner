@@ -383,7 +383,7 @@
         <tr><td class="k">버퍼 크기</td><td><a href="#q14">Q14</a> 크면 무엇이 달라지나? · <a href="#q17">Q17</a> "기억 범위" 란? 줄이면 학습량이 는다는 말은 맞나?</td></tr>
         <tr><td class="k">학습 시간 · 정책 반영</td><td><a href="#q13">Q13</a> 큐에서 순서대로 꺼내 학습하나? 언제? · <a href="#q16">Q16</a> 학습해서 actor 에 반영되기까지 얼마나? 1시간이면? 5090 이면?</td></tr>
         <tr><td class="k">개입</td><td><a href="#q6">Q6</a> 개입 없이 기다리면 되나? · <a href="#q7">Q7</a> 개입 효과가 누적되나? · <a href="#q8">Q8</a> 시연 · 개입만큼만 배우나? · <a href="#q24">Q24</a> 처음 1시간 개입하면 몇 시간 뒤 오르나? 어울리는 사양은?</td></tr>
-        <tr><td class="k">운영</td><td><a href="#q9">Q9</a> actor 없이 learner 만 돌면? · <a href="#q20">Q20</a> <strong>정리</strong> — 성공률 낮을 때 learner 만? actor 가 꼭 있어야? 성공이 많으면? 일시정지는? · <a href="#q10">Q10</a> 대시보드는 무엇을 보나? · <a href="#q11">Q11</a> 실험 구분 · 동시 실행 · <a href="#q12">Q12</a> 운영 순서 · <a href="#q22">Q22</a> 실험끼리 무엇을 섞어도 되나? · <a href="#q23">Q23</a> 쉬거나 끝낼 때 learner 도 끄나? 순서 · 시간 · 강제 종료</td></tr>
+        <tr><td class="k">운영</td><td><a href="#q9">Q9</a> actor 없이 learner 만 돌면? · <a href="#q20">Q20</a> <strong>정리</strong> — 성공률 낮을 때 learner 만? actor 가 꼭 있어야? 성공이 많으면? 일시정지는? · <a href="#q10">Q10</a> 대시보드는 무엇을 보나? · <a href="#q11">Q11</a> 실험 구분 · 동시 실행 · <a href="#q12">Q12</a> 운영 순서 · <a href="#q22">Q22</a> 실험끼리 무엇을 섞어도 되나? · <a href="#q23">Q23</a> 쉬거나 끝낼 때 learner 도 끄나? 순서 · 시간 · 강제 종료 · <a href="#q25">Q25</a> CFG 는 설정만? 특정 체크포인트는?</td></tr>
         <tr><td class="k">다른 문서</td><td>하드웨어 사양(최소 · 권장 · 상한) · VRAM → <a href="04_reproduction-handbook.html#spec">04 핸드북 §03b</a> · <a href="04_reproduction-handbook.html#vram">§03</a> &nbsp;|&nbsp; 끄는 방법별로 깨지는가 → <a href="01_place-cube-runbook.html#stop-learner">런북 08</a></td></tr>
       </tbody>
     </table>
@@ -1553,11 +1553,13 @@ learner.py:682-701      체크포인트 때 두 버퍼를 dataset/ · dataset_of
   </p>
   <p>
     <strong>중복은 막혀 있다.</strong> 8088 포트가 쓰이고 있으면 기존 프로세스를 보여 주고 그냥 끝난다. 모르고 다시 쳐도 두 개가 뜨지 않는다.
+    단, 예전 대시보드를 Ctrl+C 가 아니라 <strong>Ctrl+Z</strong> 로 멈춰 두면 그 프로세스는 <code>pkill</code> 의 종료 신호를 받지 못하고 포트만 붙잡고 있다 —
+    <code>pkill</code> 을 몇 번 쳐도 같은 안내가 나오고 브라우저도 응답이 없다. <code>pkill -9 -f progress_dashboard</code> 로 끈다(2026-11-16 실제로 있었다).
     보는 런을 바꾸려면 끄고 다시 띄운다.
   </p>
   <div class="cmd">
     <div class="cmd-head"><span>대시보드를 지금 도는 learner 에 다시 붙이기</span><button type="button" class="copy">복사</button></div>
-<pre><code>pkill -f progress_dashboard &amp;&amp; bash scripts/dashboard.sh
+<pre><code>pkill -9 -f progress_dashboard; sleep 1; bash scripts/dashboard.sh
 # 두 런을 동시에 보려면 포트를 달리:  bash scripts/dashboard.sh --port 9000 --run outputs/train/&lt;이름&gt;</code></pre>
   </div>
   <p class="sub">순서만 지키면 된다: learner 를 먼저, 대시보드를 나중에. 돌고 있는 learner 를 자동으로 따라가게 바꾸는 것은 아직 안 했다.</p>
@@ -1626,7 +1628,7 @@ export CFG=configs/train_config_&lt;이름&gt;.json
 bash scripts/train.sh learner
 
 # 3. 칸1 — learner 가 뜬 뒤 대시보드를 다시 붙인다
-pkill -f progress_dashboard; bash scripts/dashboard.sh
+pkill -9 -f progress_dashboard; sleep 1; bash scripts/dashboard.sh
 
 # 4. 칸3 — actor
 bash scripts/train.sh actor --window
@@ -2011,7 +2013,10 @@ bash scripts/train.sh stop</code></pre>
                 <code>last</code> 는 남아 다음 재개는 문제없다</td></tr>
         <tr><td class="k">저장 중에 끄면</td>
             <td><strong>Ctrl+C 한 번은 괜찮다</strong> — 첫 신호는 "끝내라" 표시만 해서 하던 저장을 마치고 꺼진다(<code>utils/process.py:85-99</code>). 5~11분 멈춘 듯 보여도 기다린다.
-                <strong>두 번 · kill · 서버 재시작은 위험</strong> — 버퍼 스냅샷이 반쯤 쓰인 채 남아 다음 재개가 깨진다. 끄는 방법별 표는 런북 <a href="01_place-cube-runbook.html#stop-learner">08</a></td></tr>
+                <strong>두 번 · kill · 서버 재시작은 위험</strong> — 버퍼 스냅샷이 반쯤 쓰인 채 남는다.
+                실제 사례(2026-11-16, <code>ur5e_place_v1</code>): 10,000 스텝 저장 시작 2분 뒤 Ctrl+C 두 번 → 가중치 체크포인트와 <code>last</code> 는 남았고,
+                온라인 스냅샷은 32,863 개 중 20,079 개(25판)까지만 쓰였다. 쓰인 부분은 온전해 다시 읽히므로 재개는 되지만 온라인 약 1만 3천 개를 잃는다.
+                오프라인은 아직 다시 쓰기 전이라 직전 저장(8,000 스텝) 것이 그대로 남았다. 어디서 끊기느냐에 따라 결과는 달라질 수 있다. 끄는 방법별 표는 런북 <a href="01_place-cube-runbook.html#stop-learner">08</a></td></tr>
         <tr><td class="k">감수해도 되는 때</td>
             <td>마지막 <code>Resume training</code> 이 몇 분 전이고 그 뒤 개입을 거의 안 했으면, Ctrl+C 한 번으로 꺼도 잃는 건 몇 분치다.
                 아끼려면 <code>train.sh save</code> → <code>Resume training</code> 이 찍힌 뒤 Ctrl+C. 정상 종료와 결과가 같다</td></tr>
@@ -2022,6 +2027,41 @@ bash scripts/train.sh stop</code></pre>
     <code>stop</code> 을 해도 재개할 때 버퍼 일부는 돌아오지 않는다(<a href="#resume">08</a>). 정상 종료도 공짜는 아니라는 뜻이다 —
     그래서 "잠깐" 이면 일시정지, "자리를 뜬다" 면 정상 종료가 기준이다. 둘 중 어느 쪽이 덜 나쁜지 경계를 재 본 적은 아직 없다(<a href="#q20">Q20</a>).
   </p>
+
+  <h3 id="q25">Q25. <code>export CFG</code> 는 설정만 고르는 것인가? 특정 체크포인트는 어떻게 고르나? 설정 파일 이름과 <code>outputs/train/</code> 폴더 이름은 같은가?</h3>
+  <p>
+    <strong><code>CFG</code> 는 설정 파일(레시피)만 고른다. 체크포인트는 고르지 않는다.</strong> <code>train.sh</code> 는 파일 <em>이름</em>이 아니라
+    파일 <em>안의</em> <code>output_dir</code> 을 읽어 폴더를 정한다. <code>train.sh new &lt;이름&gt;</code> 이 둘을 같은 이름으로 만들어 줄 뿐이다
+    (<code>train_config_ur5e_place_v1.json</code> → <code>outputs/train/ur5e_place_v1</code>). 처음부터 있던 <code>train_config_ur5e_place.json</code> 은
+    <code>ur5e_place_01</code> 이라 둘이 다르다. 확인: <code>grep output_dir "$CFG"</code>.
+  </p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>무엇이</th><th>어떤 가중치를 쓰나</th></tr></thead>
+      <tbody>
+        <tr><td class="k">learner (이어서)</td><td><strong>늘 <code>&lt;output_dir&gt;/checkpoints/last</code></strong> 가 가리키는 것. 명령으로 번호를 고르는 방법은 없다(<code>learner.py:745-764</code>)</td></tr>
+        <tr><td class="k">actor <code>--policy.path</code> 없음</td><td>무작위 가중치로 뜬다. 첫 판이 끝나면 learner 가 보낸 가중치로 바뀐다</td></tr>
+        <tr><td class="k">actor <code>--policy.path=…/0008000/pretrained_model</code></td>
+            <td>그 가중치로 뜨지만 <strong>첫 판에만</strong> 쓰인다. learner 가 50초마다 자기 가중치를 보내고 actor 는 판이 끝날 때 갈아 끼운다.
+                그래서 <code>--policy.path</code> 는 "어느 체크포인트로 학습하나" 가 아니라 "첫 판을 무작위로 돌지 않게" 하는 용도다. learner 의 <code>last</code> 와 같은 것을 준다</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h4>예전 체크포인트로 되돌아가 이어 가려면</h4>
+  <div class="cmd">
+    <div class="cmd-head"><span>learner · actor 를 끈 뒤 — last 링크를 옮긴다</span><button type="button" class="copy">복사</button></div>
+<pre><code>cd ~/project/hil-serl-mujoco-franka
+cp -a outputs/train/ur5e_place_v1/checkpoints outputs/train/ur5e_place_v1/checkpoints_backup   <span class="c"># 뒤 번호가 덮어써질 수 있다</span>
+cd outputs/train/ur5e_place_v1/checkpoints
+ln -sfn 0008000 last          <span class="c"># last 가 0008000 을 가리키게</span>
+ls -l last
+<span class="c"># 그다음 평소대로 learner, actor 는 --policy.path=…/checkpoints/last/pretrained_model</span></code></pre>
+  </div>
+  <ul>
+    <li>되돌아가도 <strong>버퍼 스냅샷(<code>dataset/</code> · <code>dataset_offline/</code>)은 마지막 저장 때 것</strong>이다. 체크포인트와 버퍼의 시점이 어긋난다 — 가중치만 되돌린다고 본다.</li>
+    <li>8,000 에서 다시 2,000 스텝을 돌면 새 저장이 <code>0010000</code> 폴더에 다시 쓰여 예전 10,000 을 덮는다. 그래서 먼저 백업한다.</li>
+    <li>학습 없이 체크포인트끼리 성능만 비교하려면 <code>scripts/replay_checkpoints.sh</code> 로 평가한다(<a href="02_place-cube-hil-serl-QA.html#q6">02 QA 문서 Q6</a>).</li>
+  </ul>
 </section>
 
 <!-- ============================================================ -->

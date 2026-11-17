@@ -23,8 +23,15 @@ done
 if ss -ltn 2>/dev/null | grep -q ":$PORT "; then
   echo "[대시보드] 포트 $PORT 이 이미 쓰이고 있다. 이미 떠 있는 것 같다:"
   pgrep -af progress_dashboard || true
+  # Ctrl+Z 로 멈춘(STAT 에 T) 대시보드는 보통 종료 신호(pkill)를 받지 못한 채 포트만 붙잡고 있다.
+  # 2026-11-16 실제로 이랬다. 그래서 다시 띄우는 명령은 늘 -9 로 안내한다.
+  for _pid in $(pgrep -f progress_dashboard); do
+    case "$(ps -o stat= -p "$_pid" 2>/dev/null)" in
+      T*) echo "  PID $_pid 는 멈춤(Stopped) 상태다 — Ctrl+Z 로 멈춘 것. 응답도 하지 않는다." ;;
+    esac
+  done
   echo "  브라우저에서 http://localhost:$PORT/ 를 열어 보고,"
-  echo "  다시 띄우려면 먼저: pkill -f progress_dashboard"
+  echo "  다시 띄우려면:  pkill -9 -f progress_dashboard; sleep 1; bash scripts/dashboard.sh"
   exit 1
 fi
 
