@@ -416,6 +416,17 @@ cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 
     </table>
   </div>
 
+  <div class="note" id="cloud">
+    <span class="tag">Secure Cloud 와 Community Cloud — 가격 "A / B" 읽는 법</span>
+    <p>
+      RunPod 은 같은 GPU 를 두 경로로 빌려준다. <strong>Secure Cloud</strong> 는 RunPod 이 계약한 전문 데이터센터의 서버라 안정적이고 값이 높다.
+      <strong>Community Cloud</strong> 는 RunPod 이 심사한 외부 개인 · 업체가 내놓은 서버라 싸지만, 서버마다 네트워크 · 공개 IP 유무 · 중간에 멈출 가능성이 다르다.
+      Deploy 화면에서 둘 중 하나를 먼저 고르면 그쪽 재고와 값이 보인다.
+      이 문서에서 "<strong>$2.19 / $1.39</strong>" 처럼 쓴 것은 같은 GPU 의 시간당 <strong>Secure 값 / Community 값</strong>이다.
+      하루쯤 돌리는 학습이라 Secure 를 권하고, Community 를 고르면 pod 를 만든 뒤 Connect 탭에 "SSH over exposed TCP" 가 있는지 꼭 확인한다.
+    </p>
+  </div>
+
   <h3>순서대로</h3>
   <p class="sub">버튼 이름은 RunPod 화면이 바뀌면 조금 다를 수 있다 <span class="st est">추정</span>. 칸의 뜻은 위 표와 같다.</p>
   <ol class="steps">
@@ -572,7 +583,7 @@ nproc                               <span class="c"># vCPU 수 — 체크포인�
   <p>VS Code 없이 웹에서 파일을 보고 고친다. 공식 PyTorch 템플릿에 JupyterLab 이 들어 있어 따로 깔 것이 없다.</p>
   <ol class="steps">
     <li>pod 의 <strong>Connect → HTTP Services → Jupyter Lab</strong>(포트 8888). 비밀번호는 <code>JUPYTER_PASSWORD</code> 에 넣은 값. 처음 켤 때는 1분쯤 걸린다 — 빈 화면이면 기다렸다 새로 고침.</li>
-    <li>왼쪽 파일 탐색기에서 <code>/workspace/hil-serl-mujoco-franka</code> 로 간다.</li>
+    <li>왼쪽 파일 탐색기에서 <code>/workspace/hil-serl_franca_panda_gpu-learner</code> 로 간다.</li>
     <li><code>.py</code> · <code>.json</code> · <code>.sh</code> 는 두 번 누르면 편집기로 열린다(<kbd>Ctrl</kbd>+<kbd>S</kbd> 저장). <code>docs/*.html</code> 문서는 그대로 그려져 보인다(복사 버튼까지 쓰려면 위의 "Trust HTML"). <code>.md</code> 는 오른쪽 클릭 → Open With → Markdown Preview.</li>
     <li>File → New → Terminal 로 pod 셸도 열린다. 여기서 <code>tmux attach -t hil</code> 하면 SSH 창과 같은 learner · actor 창이 보인다.</li>
   </ol>
@@ -581,7 +592,7 @@ nproc                               <span class="c"># vCPU 수 — 체크포인�
     <li>대시보드(8088)는 여기서 열지 않는다 — 그대로 SSH 터널(<code>-L 8088</code>)로 본다.</li>
     <li>VS Code 모양 그대로가 필요하면 브라우저용 VS Code(code-server)를 <code>/workspace</code> 에 깔아 SSH 터널로 여는 방법도 있다 <span class="st wait">실측 대기</span>:
         <code>curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/workspace/.code-server</code> 뒤
-        tmux 새 창에서 <code>/workspace/.code-server/bin/code-server --bind-addr 127.0.0.1:8443 --auth none /workspace/hil-serl-mujoco-franka</code>,
+        tmux 새 창에서 <code>/workspace/.code-server/bin/code-server --bind-addr 127.0.0.1:8443 --auth none /workspace/hil-serl_franca_panda_gpu-learner</code>,
         내 PC 의 SSH 에 <code>-L 8443:localhost:8443</code> 을 더 붙이고 <code>http://localhost:8443/</code>. pod 안 127.0.0.1 에만 열리므로 SSH 터널로만 들어온다.</li>
   </ul>
 </section>
@@ -592,13 +603,12 @@ nproc                               <span class="c"># vCPU 수 — 체크포인�
   <p>이 단계는 tmux 밖에서 한다. tmux 는 <code>01</code> 이 깔아 준다.</p>
   <div class="cmd">
     <div class="cmd-head"><span>pod 안 — clone</span><button type="button" class="copy">복사</button></div>
-<pre><code>cd /workspace
-git clone https://github.com/gguldong2/hil-serl_franca_panda_gpu-learner.git hil-serl-mujoco-franka
+<pre><code>cd /workspace &amp;&amp; git clone https://github.com/gguldong2/hil-serl_franca_panda_gpu-learner &amp;&amp; cd hil-serl_franca_panda_gpu-learner/
 <span class="c">#   Username: GitHub 아이디    Password: 토큰 (붙여 넣어도 화면에 안 보이는 게 정상)</span>
-cd hil-serl-mujoco-franka
 grep -c 'xvfb xdotool tmux' scripts/server22/01_install_system.sh   <span class="c"># 1 이어야 한다</span>
 grep -c NEED_SYS_FIX scripts/preflight.sh                           <span class="c"># 1 이상이어야 한다</span></code></pre>
   </div>
+  <p class="sub">폴더 이름은 저장소 이름 그대로 <code>/workspace/hil-serl_franca_panda_gpu-learner</code> 이다. 이 문서의 모든 경로가 이 이름을 쓴다. 기준 서버의 폴더 이름(<code>hil-serl-mujoco-franka</code>)과 다르지만, 스크립트는 경로를 박아 두지 않아 상관없다.</p>
   <p class="sub">위 두 줄이 <code>0</code> 이면 옛 버전이다 — 이 문서의 절차가 맞지 않는다. 저장소에 최신이 올라가 있는지 먼저 확인한다. <code>git: command not found</code> 면 <code>apt-get update &amp;&amp; apt-get install -y git</code>.</p>
 
   <div class="cmd">
@@ -629,7 +639,7 @@ bash scripts/server22/01_install_system.sh</code></pre>
   <div class="cmd">
     <div class="cmd-head"><span>pod 안 — 세션 만들기 (처음, 그리고 pod 를 다시 켤 때마다 같은 블록)</span><button type="button" class="copy">복사</button></div>
 <pre><code>printf 'set -g mouse on\nset -g history-limit 50000\n' &gt; ~/.tmux.conf
-tmux new -d -s hil -n shell -c /workspace/hil-serl-mujoco-franka -e CFG=configs/train_config_panda_runpod.json
+tmux new -d -s hil -n shell -c /workspace/hil-serl_franca_panda_gpu-learner -e CFG=configs/train_config_panda_runpod.json
 tmux new-window -t hil -n dash
 tmux new-window -t hil -n learner
 tmux new-window -t hil -n actor
@@ -807,7 +817,7 @@ tmux attach -t hil</code></pre>
     <table>
       <thead><tr><th>Stop 하면 남는 것</th><th>사라지는 것</th></tr></thead>
       <tbody>
-        <tr><td><code>/workspace/hil-serl-mujoco-franka/</code> 전부 — 설정 · venv · 시연 · 체크포인트 · 로그</td>
+        <tr><td><code>/workspace/hil-serl_franca_panda_gpu-learner/</code> 전부 — 설정 · venv · 시연 · 체크포인트 · 로그</td>
             <td>돌던 프로세스 · tmux 세션 · Xvfb · apt 로 깐 패키지 · Python 3.12 · <code>~/.tmux.conf</code></td></tr>
       </tbody>
     </table>
@@ -823,7 +833,7 @@ tmux attach -t hil</code></pre>
   <div class="cmd">
     <div class="cmd-head"><span>① 접속 · 환경 복구 (1~5분)</span><button type="button" class="copy">복사</button></div>
 <pre><code>ssh -L 8088:localhost:8088 root@&lt;POD_IP&gt; -p &lt;SSH_PORT&gt; -i ~/.ssh/id_ed25519
-cd /workspace/hil-serl-mujoco-franka
+cd /workspace/hil-serl_franca_panda_gpu-learner
 bash scripts/preflight.sh --fix        <span class="c"># 마지막 줄 "준비됨"</span></code></pre>
   </div>
   <p>
@@ -884,7 +894,7 @@ bash scripts/preflight.sh --fix        <span class="c"># 마지막 줄 "준비�
 <pre><code>cd outputs/train/panda_runpod/checkpoints
 ls -d [0-9]* | sort -n | head -n -5                  <span class="c"># 지울 목록을 먼저 본다 (last 가 가리키는 최신은 여기 없다)</span>
 ls -d [0-9]* | sort -n | head -n -5 | xargs rm -rf   <span class="c"># 지운다</span>
-cd /workspace/hil-serl-mujoco-franka</code></pre>
+cd /workspace/hil-serl_franca_panda_gpu-learner</code></pre>
   </div>
   <p class="sub">learner 가 저장하는 중(learner 창에 저장 로그가 흐르는 동안)에는 하지 않는다.</p>
 
@@ -892,7 +902,7 @@ cd /workspace/hil-serl-mujoco-franka</code></pre>
   <div class="cmd">
     <div class="cmd-head"><span>내 PC — 학습된 정책 (마지막 체크포인트)</span><button type="button" class="copy">복사</button></div>
 <pre><code>scp -P &lt;SSH_PORT&gt; -i ~/.ssh/id_ed25519 -r \
-  root@&lt;POD_IP&gt;:/workspace/hil-serl-mujoco-franka/outputs/train/panda_runpod/checkpoints/last/pretrained_model \
+  root@&lt;POD_IP&gt;:/workspace/hil-serl_franca_panda_gpu-learner/outputs/train/panda_runpod/checkpoints/last/pretrained_model \
   ./panda_runpod_last</code></pre>
   </div>
   <p class="sub"><code>scp</code> 는 대문자 <code>-P</code> 로 포트를 받는다. 기본 SSH(<code>ssh.runpod.io</code>)로는 안 된다.</p>
@@ -903,7 +913,7 @@ cd /workspace/hil-serl-mujoco-franka</code></pre>
 
 <footer>
   <p>
-    RunPod 실행 절차 · hil-serl-mujoco-franka · 2026-11-08 작성 · 2026-11-16 갱신 ·
+    RunPod 실행 절차 · hil-serl-mujoco-franka · 2026-11-08 작성 · 2026-11-18 갱신 ·
     결정과 근거는 <a href="04_reproduction-handbook.html">04 재현 핸드북</a>, 이 서버의 상세 운영은 <a href="01_place-cube-runbook.html">01 런북</a>
   </p>
 </footer>

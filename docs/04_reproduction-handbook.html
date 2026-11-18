@@ -460,7 +460,7 @@ RUN bash /tmp/01.sh &amp;&amp; rm /tmp/01.sh
 └── pod = 컨테이너 하나                  <span class="c"># RunPod 이 이미지로 만들어 띄운다. 우리가 docker run 하는 게 아니다</span>
     ├── /usr …                          <span class="c"># 이미지에서 온 것: OS · apt 패키지 · Python 3.12</span>
     ├── SSH 로 들어온 셸                 <span class="c"># 우리는 여기. 지금 서버와 똑같다</span>
-    └── /workspace/hil-serl-mujoco-franka/
+    └── /workspace/hil-serl_franca_panda_gpu-learner/
           bash scripts/train.sh learner    <span class="c"># 그냥 프로세스</span>
           bash scripts/train.sh actor
           bash scripts/dashboard.sh</code></pre>
@@ -477,7 +477,7 @@ RUN bash /tmp/01.sh &amp;&amp; rm /tmp/01.sh
 ├── usr/ …                         <span class="c"># apt 패키지 · Python 3.12 · gcc · Xvfb · xdotool · tmux — 01 이 채운다</span>
 ├── root/                          <span class="c"># 홈. ~/.tmux.conf · ~/.vnc · ~/.cache 도 멈추면 지워진다</span>
 └── workspace/                     <span class="c"># 볼륨 — 멈춰도 남는다 (삭제하면 같이 지워진다)</span>
-    └── hil-serl-mujoco-franka/    <span class="c"># git clone. 지금 ~/project/hil-serl-mujoco-franka 와 같은 구조</span>
+    └── hil-serl_franca_panda_gpu-learner/  <span class="c"># git clone (저장소 이름 그대로). 지금 ~/project/hil-serl-mujoco-franka 와 같은 구조</span>
         ├── configs/ scripts/ docs/    <span class="c"># 저장소 — 그냥 열어 보고 고친다</span>
         ├── third_party/               <span class="c"># 02 가 고정 커밋으로 clone + 패치</span>
         ├── .venv/                     <span class="c"># 02 가 만든다 (7.5 GB)</span>
@@ -937,7 +937,7 @@ CFG=configs/train_config_panda_32gb.json bash scripts/train.sh learner</code></p
     <table>
       <thead><tr><th>멈추면 남는 것</th><th>멈추면 사라지는 것</th></tr></thead>
       <tbody>
-        <tr><td><code>/workspace/hil-serl-mujoco-franka/</code> 전부 — 저장소 · <code>.venv</code> · <code>third_party</code> · <code>nvidia-gl/</code> · <code>data/</code> · <code>outputs/</code>(체크포인트 · 로그 · 버퍼 스냅샷)</td>
+        <tr><td><code>/workspace/hil-serl_franca_panda_gpu-learner/</code> 전부 — 저장소 · <code>.venv</code> · <code>third_party</code> · <code>nvidia-gl/</code> · <code>data/</code> · <code>outputs/</code>(체크포인트 · 로그 · 버퍼 스냅샷)</td>
             <td>돌던 프로세스 전부(learner · actor · 대시보드 · Xvfb) · tmux 세션 · apt 로 깐 패키지와 Python 3.12(A 방식) · <code>/root</code> 의 설정(<code>~/.tmux.conf</code> · <code>~/.vnc</code> · <code>~/.cache</code>) · <code>/dev/shm</code> · <code>/tmp</code></td></tr>
       </tbody>
     </table>
@@ -1053,7 +1053,7 @@ ssh -L 8088:localhost:8088 root@&lt;POD_IP&gt; -p &lt;SSH_PORT&gt; -i ~/.ssh/id_
       <thead><tr><th>#</th><th>할 일</th><th>기대 결과</th></tr></thead>
       <tbody>
         <tr><td class="k">1</td><td>pod 생성: GPU(<a href="#vram">03</a>) · RunPod 공식 PyTorch 템플릿, Ubuntu 22.04 계열(24.04 도 가능, <a href="#os">06</a>) — <strong>템플릿 이미지 태그를 적어 둔다(T18)</strong> · 컨테이너 디스크 30 GB · 볼륨 100 GB(<code>/workspace</code>) · TCP 22 노출 · 환경변수 <code>NVIDIA_DRIVER_CAPABILITIES=all</code></td><td>SSH 접속 됨</td></tr>
-        <tr><td class="k">2</td><td><code>cd /workspace &amp;&amp; git clone &lt;저장소&gt; hil-serl-mujoco-franka &amp;&amp; cd hil-serl-mujoco-franka</code></td><td>—</td></tr>
+        <tr><td class="k">2</td><td><code>cd /workspace &amp;&amp; git clone https://github.com/gguldong2/hil-serl_franca_panda_gpu-learner &amp;&amp; cd hil-serl_franca_panda_gpu-learner/</code></td><td>—</td></tr>
         <tr><td class="k">3</td><td><code>mkdir -p outputs &amp;&amp; bash scripts/server22/00_check_server.sh | tee outputs/server_check.log</code></td><td>드라이버 버전 · CC · VRAM · <strong>EGL 라이브러리 있음/없음</strong> 기록</td></tr>
         <tr><td class="k">4</td><td><code>bash scripts/server22/01_install_system.sh</code> → tmux 세션(<a href="05_runpod-runbook.html#tmux">05 §05</a>)</td><td>"[01] 완료"</td></tr>
         <tr><td class="k">5</td><td><code>bash scripts/server22/02_setup_project.sh</code></td><td>5090 이면 <code>compute capability=12.0 -&gt; cu128</code>, 마지막 줄 <code>OK torch=2.11.0+cu1xx cuda=True</code></td></tr>
@@ -1135,6 +1135,7 @@ ssh -L 8088:localhost:8088 root@&lt;POD_IP&gt; -p &lt;SSH_PORT&gt; -i ~/.ssh/id_
         <tr><td class="k">2026-11-06</td><td>§01 에 "pod 안에서 <code>docker run</code> 을 하지 않는다" 와 층 그림 추가(RunPod 은 Docker-in-Docker 를 막는다). §09 멈추기 전 단계에서 런북의 끄는 방법별 표로 연결.</td></tr>
         <tr><td class="k">2026-11-06</td><td>§01 에 "B 는 어떻게 하나"(템플릿의 Container Image 칸 · 빌드 · 업로드 · 템플릿 · Dockerfile 모양 · 주의점) 추가.</td></tr>
         <tr><td class="k">2026-11-06</td><td><strong>D1 결정: A — 우리 Docker 이미지를 만들지 않는다.</strong> §01 을 결정 기준으로 고치고 B 는 "참고" 로 남겼다. T8 보류, T18 추가(템플릿 이미지 태그 기록). §08 · §09 · §12 의 이미지 관련 문구 정리.</td></tr>
+        <tr><td class="k">2026-11-18</td><td>RunPod 의 프로젝트 폴더를 저장소 이름 그대로 <code>/workspace/hil-serl_franca_panda_gpu-learner</code> 로(clone 할 때 폴더 이름을 따로 주지 않는다). 05 · 04 의 RunPod 경로를 모두 바꿨다. 05 §02 에 Secure Cloud / Community Cloud 뜻과 가격 "A / B" 읽는 법.</td></tr>
         <tr><td class="k">2026-11-16</td><td>RunPod 에서 L40S 재고가 없었다. 05 §02 에 "L40S 가 없을 때" 추가 — 고르는 화면에서 막히면 재고 · 필터(클라우드 · 지역 · CUDA 필터 · 네트워크 볼륨), pod 가 생긴 뒤 시작에서 막히면 템플릿 CUDA(<code>unsatisfied condition: cuda&gt;=X.X</code>). VRAM 48 GB · vCPU 16 을 둘 다 채우는 대안 순위: ① A100 SXM 80GB($2.19 / $1.39) ② RTX PRO 6000($2.69 / $1.69) ③ H100 PCIe 80GB($2.89 / $1.99, 그래픽은 칩 일부만 — 렌더 속도 실측 대기). D4 에 반영.</td></tr>
         <tr><td class="k">2026-11-16</td><td>§07 에 "왜 프로젝트 전용 venv 인가"(이 서버도 <code>.venv</code> 사용, RunPod PyTorch 이미지에 torch 2.11 없음, 멈추면 시스템 패키지가 지워짐, 충돌 경로). §03b CPU 행에 저장이 코어 수에 다 비례하지 않는다는 점. D4 에 값 우선이면 A6000. 05 §02 를 "한눈에 — 넣을 값" 표 → RunPod 화면 순서(Secure Cloud · L40S × 1 · Runpod PyTorch CUDA 12.8 · Ubuntu 22.04 · Edit Template 의 디스크 · 포트 · 환경변수 · On-Demand · Connect 확인) → 이유 → GPU 고르는 근거(최소 · 권장 기준, GPU 비교 표)로 다시 짰고, 버퍼를 줄이면 잃는 것(기억 범위 46 → 23 → 11분, 시연 앞 개입 자리 20,388 → 10,388 → 388)을 넣었다.</td></tr>
         <tr><td class="k">2026-11-15</td><td>05 §02 에 RunPod GPU 후보 표(VRAM · vCPU · RAM · 11-15 공시가, L40S 추천, MIG 피함, "RTX 6000" 이름 셋 구분)와 템플릿 고르는 법(Runpod PyTorch · CUDA 12.8 · Ubuntu 22.04 — 템플릿의 torch · CUDA 는 안 쓰고 드라이버 조건으로만 작용), <code>JUPYTER_PASSWORD</code>. 05 §03 에 JupyterLab 으로 파일 보기 · 고치기(code-server 는 실측 대기). D4 에 L40S 추천. 03 문서에 Q24(처음 1시간 개입 후 몇 시간 뒤 오르나 · 어울리는 사양).</td></tr>
@@ -1159,7 +1160,7 @@ ssh -L 8088:localhost:8088 root@&lt;POD_IP&gt; -p &lt;SSH_PORT&gt; -i ~/.ssh/id_
 
 <footer>
   <p>
-    재현 핸드북 · hil-serl-mujoco-franka · 2026-11-06 작성 · 2026-11-16 갱신 ·
+    재현 핸드북 · hil-serl-mujoco-franka · 2026-11-06 작성 · 2026-11-18 갱신 ·
     LeRobot 0.6.1 / gym-hil 0.1.14 / MuJoCo 3.8.1 · 기준 A100 80GB · Ubuntu 22.04
   </p>
 </footer>
