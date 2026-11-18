@@ -56,7 +56,10 @@ $SUDO apt-get install -y --no-install-recommends \
   build-essential \
   libglfw3 libgl1 libglx-mesa0 libgl1-mesa-dri libegl1 libglew2.2 libosmesa6 mesa-utils \
   libx11-6 libxext6 libxrender1 libxrandr2 libxinerama1 libxcursor1 libxi6 libxkbcommon0 \
-  x11-utils xvfb xdotool tmux
+  x11-utils xvfb xdotool tmux \
+  fonts-nanum-coding
+# fonts-nanum-coding: 대시보드 영상 위 글자(HUD)와 record_clips.py 띠의 한글 글꼴.
+#   없으면 DejaVu 로 떨어져 한글이 네모로 깨진다 (RunPod 이미지에는 없다 — 2026-11-18).
 if [ "$WITH_VNC" = 1 ]; then
   echo "[01] VNC/noVNC"
   $SUDO apt-get install -y --no-install-recommends tigervnc-standalone-server tigervnc-common novnc websockify fluxbox xterm

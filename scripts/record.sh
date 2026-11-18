@@ -38,6 +38,15 @@ fi
 
 # 녹화 설정. 다른 로봇은 CFG 로 바꾼다 (teleop.sh 와 같은 방식).
 CFG="${CFG:-configs/env_config_panda_place_record.json}"
+# RunPod 의 tmux 세션(hil)은 CFG 를 학습 설정(train_config_*)으로 잡아 둔다. 그 값을 그대로 쓰면
+# record.sh 가 학습 설정을 읽고 죽는다(2026-11-18). 그래서 학습 설정이면 멈추고 맞는 명령을 알려 준다.
+case "$(basename "$CFG")" in
+  train_config_*)
+    echo "[record] CFG 가 학습 설정이다: $CFG  (tmux 세션 hil 이 잡아 둔 값)"
+    echo "  시연 녹화에는 env_config 를 쓴다. 이렇게 띄운다:"
+    echo "    CFG=configs/env_config_panda_place_record.json bash scripts/record.sh ${1:-01}"
+    exit 1;;
+esac
 read -r TASK DROOT < <(python -c "import json,sys; c=json.load(open(sys.argv[1])); print(c['env']['task'], c['dataset']['root'])" "$CFG") || exit 1
 # 배치 폴더 접두어. Panda 기본 설정은 예전부터 쓰던 data/place_demo_NN 을 유지한다.
 if [ "$DROOT" = "data/panda_place_cube_demo" ]; then PREFIX="data/place_demo"; else PREFIX="$DROOT"; fi

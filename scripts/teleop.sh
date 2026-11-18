@@ -30,6 +30,15 @@ fi
 # 설정 파일. 다른 로봇은 CFG 로 바꾼다:
 #   CFG=configs/env_config_ur5e_place_teleop.json bash scripts/teleop.sh
 CFG="${CFG:-configs/env_config_panda_place_teleop.json}"
+# RunPod 의 tmux 세션(hil)은 CFG 를 학습 설정(train_config_*)으로 잡아 둔다. 그 값을 그대로 쓰면
+# teleop.sh 가 학습 설정을 읽고 죽는다(2026-11-18). 그래서 학습 설정이면 멈추고 맞는 명령을 알려 준다.
+case "$(basename "$CFG")" in
+  train_config_*)
+    echo "[teleop] CFG 가 학습 설정이다: $CFG  (tmux 세션 hil 이 잡아 둔 값)"
+    echo "  조작 연습에는 env_config 를 쓴다. 이렇게 띄운다:"
+    echo "    CFG=configs/env_config_panda_place_teleop.json bash scripts/teleop.sh"
+    exit 1;;
+esac
 TASK="$(python -c "import json,sys; print(json.load(open(sys.argv[1]))['env']['task'])" "$CFG")" || exit 1
 
 TASK_OVERRIDE=()
