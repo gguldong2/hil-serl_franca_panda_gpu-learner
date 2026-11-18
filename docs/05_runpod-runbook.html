@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RunPod 실행 절차</title>
+<title>RunPod 실행 절차 · UR5e</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
@@ -304,19 +304,20 @@
 
 <div class="topbar">
   <div class="topbar-inner">
-    <span class="mark">RunPod 실행 절차</span>
+    <span class="mark">RunPod 실행 절차 · UR5e</span>
     <nav>
       <a href="#before">시작 전</a>
       <a href="#prep">내 PC</a>
       <a href="#pod">pod</a>
-      <a href="#ssh">접속</a>
-      <a href="#jupyter">파일 보기</a>
+      <a href="#connect">접속</a>
       <a href="#install1">설치 ①</a>
       <a href="#tmux">tmux</a>
       <a href="#install2">설치 ②</a>
       <a href="#config">설정</a>
+      <a href="#demo">조작 · 녹화</a>
       <a href="#smoke">스모크</a>
       <a href="#train">학습</a>
+      <a href="#eval">추론</a>
       <a href="#reconnect">끊김</a>
       <a href="#stop">멈추기</a>
       <a href="#restart">다시 켜기</a>
@@ -331,14 +332,14 @@
 <header class="hero">
   <h1>RunPod 실행 절차</h1>
   <p class="lede">
-    RunPod pod 를 만들고, 설치하고, 지금 서버에서 하듯 tmux 안에서 learner · actor · 대시보드를 띄우고,
-    멈추고 다시 켜는 순서다. 옆에 물어볼 사람(Claude 포함)이 없다고 보고, 칠 명령 · 나와야 하는 결과 · 막혔을 때 할 일을 모두 적었다.
+    RunPod pod 를 만들고, 설치하고, UR5e 로 조작 연습 · 시연 녹화 · 학습 · 추론을 하고, 멈추고 다시 켜는 순서다.
+    옆에 물어볼 사람(Claude 포함)이 없다고 보고, 칠 명령 · 나와야 하는 결과 · 막혔을 때 할 일을 모두 적었다.
   </p>
   <dl class="statgrid">
     <div><dt>처음 설치</dt><dd>30~45<small> 분 (추정)</small></dd></div>
-    <div><dt>다시 켤 때</dt><dd>약 5<small> 분 + learner 재개</small></dd></div>
-    <div><dt>tmux 창</dt><dd>4<small> 개 · shell · dash · learner · actor</small></dd></div>
-    <div><dt>로봇</dt><dd>Panda<small> · 시연은 저장소에 들어 있다</small></dd></div>
+    <div><dt>시연 녹화</dt><dd>30~50<small> 분 · 성공 30~40판</small></dd></div>
+    <div><dt>tmux 칸</dt><dd>4<small> 개 · dash · learner · actor · shell</small></dd></div>
+    <div><dt>로봇</dt><dd>UR5e<small> · 시연은 pod 에서 녹화</small></dd></div>
   </dl>
 </header>
 
@@ -350,23 +351,45 @@
     <ul>
       <li><strong>저장소가 최신이어야 한다.</strong> 2026-11-08 에 스크립트 세 개를 RunPod 에 맞게 고쳤다:
           <code>01_install_system.sh</code>(tmux · xdotool · gcc 추가), <code>preflight.sh</code>(Xvfb 자동 시작 · 다시 켠 pod 알아보기), <code>train.sh</code>.
-          2026-11-18 에 <code>01_install_system.sh</code> 를 한 번 더 고쳤다 — RunPod 의 Ubuntu 24.04 이미지에서 Python 3.12 단계가 apt 를 망가뜨리던 것(<a href="#trouble">13</a>).
+          2026-11-18 에 <code>01_install_system.sh</code> 를 두 번 더 고쳤다 — RunPod 의 Ubuntu 24.04 이미지에서 Python 3.12 단계가 apt 를 망가뜨리던 것, 대시보드 영상의 한글이 네모로 깨지던 것(한글 글꼴 추가, <a href="#trouble">15</a>).
           clone 한 뒤 <a href="#install1">04</a> 의 확인 줄로 본다.</li>
-      <li><strong>Panda 기준이다.</strong> 시연(<code>data/panda_place_cube_demo</code>, 43판 · 19,612 프레임)과 참고 정책(<code>outputs/releases/</code>)은 저장소에 들어 있어 clone 만 하면 된다. UR5e 시연은 저장소에 없다.</li>
+      <li><strong>UR5e 기준이다.</strong> UR5e 시연은 저장소에 없어서(<code>data/</code> 는 <code>.gitignore</code>) pod 에서 직접 녹화한다(<a href="#demo">08</a>).
+          Panda 로 하려면 아래 대응표의 이름으로 바꿔 치면 되고, Panda 시연은 저장소에 들어 있어 녹화를 건너뛴다.</li>
       <li>숫자 옆 <span class="st est">추정</span> 은 RunPod 에서 아직 재 보지 않은 값이다. 재면 <a href="04_reproduction-handbook.html#first">04 핸드북 §12</a> 에 적는다.</li>
     </ul>
   </div>
 
+  <h3>UR5e ↔ Panda 이름 대응</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>무엇</th><th>UR5e (이 문서)</th><th>Panda</th></tr></thead>
+      <tbody>
+        <tr><td class="k">베낄 학습 설정</td><td><code>configs/train_config_ur5e_place.json</code></td><td><code>configs/train_config_panda_place_gpu.json</code></td></tr>
+        <tr><td class="k">RunPod 학습 설정 · 출력 폴더</td><td><code>configs/train_config_ur5e_runpod.json</code> · <code>outputs/train/ur5e_runpod</code></td><td><code>configs/train_config_panda_runpod.json</code> · <code>outputs/train/panda_runpod</code></td></tr>
+        <tr><td class="k">연습 · 녹화 설정</td><td><code>configs/env_config_ur5e_place_teleop.json</code> · <code>…_record.json</code></td><td><code>configs/env_config_panda_place_teleop.json</code> · <code>…_record.json</code></td></tr>
+        <tr><td class="k">시연</td><td>pod 에서 녹화 → <code>data/ur5e_place_cube_demo</code></td><td>저장소에 있다 — <code>data/panda_place_cube_demo</code> 43판 · 19,612 프레임</td></tr>
+        <tr><td class="k">녹화 배치 폴더</td><td><code>data/ur5e_place_cube_demo_01</code> …</td><td><code>data/place_demo_01</code> …</td></tr>
+        <tr><td class="k">스모크 설정</td><td><code>configs/train_config_ur5e_smoke.json</code></td><td><code>configs/train_config_place_smoke_gpu.json</code></td></tr>
+        <tr><td class="k">추론(개입 없는) 환경</td><td><code>UR5ePlaceCube-v0</code></td><td><code>PandaPlaceCube-v0</code></td></tr>
+        <tr><td class="k">참고 정책</td><td>없다</td><td><code>outputs/releases/03_exp_b_assist_step242000/pretrained_model</code></td></tr>
+        <tr><td class="k">상태 차원</td><td>16 (6축)</td><td>18 (7축)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="sub">키 배치 · 성공 조건 · 한 판 40초 제한은 두 로봇이 같다. 기준 서버에서 UR5e 를 돌리는 절차는 <a href="06_ur5e-experiment-runbook.html">06 UR5e 실험 운영</a>.</p>
+
   <h3>전체 흐름</h3>
   <ol class="rail">
-    <li><div><b>내 PC 준비 — 한 번</b><span class="m">SSH 키를 RunPod 에 등록, GitHub 토큰 만들기 (<a href="#prep">01</a>)</span></div></li>
-    <li><div><b>pod 만들기</b><span class="m">GPU · 템플릿 · 디스크 · 환경변수 (<a href="#pod">02</a>)</span></div></li>
-    <li><div><b>SSH 접속</b><span class="m">대시보드 터널 <code>-L 8088</code> 을 붙여서 (<a href="#ssh">03</a>)</span></div></li>
+    <li><div><b>내 PC 준비 — 한 번</b><span class="m">GitHub 토큰(push 할 때만) · SSH 키(선택) (<a href="#prep">01</a>)</span></div></li>
+    <li><div><b>pod 만들기</b><span class="m">GPU · 템플릿 · 디스크 · HTTP 포트 <code>8888</code> · <code>8088</code> · 환경변수 (<a href="#pod">02</a>)</span></div></li>
+    <li><div><b>접속</b><span class="m">명령은 JupyterLab 터미널, 대시보드는 <code>https://&lt;POD_ID&gt;-8088.proxy.runpod.net/</code> (<a href="#connect">03</a>)</span></div></li>
     <li><div><b>설치 — 처음 한 번</b><span class="m">clone → <code>00</code> · <code>01</code> → tmux 세션 → <code>02</code> → <code>preflight --fix</code> → <code>03</code> (<a href="#install1">04</a>~<a href="#install2">06</a>)</span></div></li>
-    <li><div><b>학습 설정</b><span class="m">GPU 메모리에 맞춰 버퍼 크기 (<a href="#config">07</a>)</span></div></li>
-    <li><div><b>스모크 → 학습</b><span class="m">learner → actor → 대시보드 (<a href="#smoke">08</a> · <a href="#train">09</a>)</span></div></li>
-    <li><div><b>멈추기</b><span class="m"><code>train.sh stop</code> → 저장이 끝날 때까지 기다림 → RunPod 에서 Stop (<a href="#stop">11</a>)</span></div></li>
-    <li><div><b>다시 켜기</b><span class="m"><code>preflight --fix</code> 한 줄 → tmux 세션 → learner → actor (<a href="#restart">12</a>)</span></div></li>
+    <li><div><b>학습 설정</b><span class="m"><code>train.sh new runpod</code> · GPU 메모리에 맞춘 버퍼 (<a href="#config">07</a>)</span></div></li>
+    <li><div><b>조작 연습 · 시연 녹화</b><span class="m">teleop → record × 4 → 병합 · 통계 · 점검 (<a href="#demo">08</a>)</span></div></li>
+    <li><div><b>스모크 → 학습</b><span class="m">learner → 대시보드 → actor · 개입 (<a href="#smoke">09</a> · <a href="#train">10</a>)</span></div></li>
+    <li><div><b>추론</b><span class="m">체크포인트로 개입 없이 돌려 보기 (<a href="#eval">11</a>)</span></div></li>
+    <li><div><b>멈추기</b><span class="m">actor <kbd>Ctrl</kbd>+<kbd>C</kbd> → <code>train.sh stop</code> → 저장이 끝날 때까지 기다림 → RunPod 에서 Stop (<a href="#stop">13</a>)</span></div></li>
+    <li><div><b>다시 켜기</b><span class="m"><code>preflight --fix</code> 한 줄 → tmux 세션 → learner → 대시보드 → actor (<a href="#restart">14</a>)</span></div></li>
   </ol>
 </section>
 
@@ -374,18 +397,10 @@
 <section id="prep">
   <h2><span class="num">01</span>내 PC 준비 — 한 번</h2>
 
-  <h3>SSH 키를 RunPod 에 등록</h3>
-  <div class="cmd">
-    <div class="cmd-head"><span>내 PC 터미널 (Windows 는 PowerShell 에서 같은 명령)</span><button type="button" class="copy">복사</button></div>
-<pre><code>ls ~/.ssh/id_ed25519.pub || ssh-keygen -t ed25519     <span class="c"># 없으면 만든다. 묻는 것은 엔터로 넘겨도 된다</span>
-cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 한 줄(ssh-ed25519 로 시작)을 복사</span></code></pre>
-  </div>
-  <p>RunPod 웹 → 계정 Settings → <strong>SSH Public Keys</strong> 칸에 그 한 줄을 붙여 넣고 저장한다. <strong>pod 를 만들기 전에</strong> 해 둔다 — 키는 pod 가 만들어질 때 들어간다.</p>
-
   <h3>GitHub 토큰 — pod 에서 push 할 때만</h3>
   <p>
     저장소 <code>github.com/gguldong2/hil-serl_franca_panda_gpu-learner</code> 는 <strong>공개</strong>다(2026-11-18 확인 — 토큰 없이 clone 됐다).
-    그래서 clone 에는 토큰이 필요 없다. pod 에서 고친 것을 GitHub 에 올릴(push) 때만 비밀번호 대신 토큰을 넣는다(<a href="#push">14</a>).
+    그래서 clone 에는 토큰이 필요 없다. pod 에서 고친 것을 GitHub 에 올릴(push) 때만 비밀번호 대신 토큰을 넣는다(<a href="#push">16</a>).
     저장소를 다시 비공개로 돌리면 clone 때도 Username · Password(토큰)를 묻는다.
   </p>
   <ul>
@@ -394,6 +409,31 @@ cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 
     <li><strong>다른 계정이면</strong> — 주인에게 Collaborator 초대를 받은 뒤 자기 계정에서 토큰을 만든다. <strong>Tokens (classic)</strong> 의 <code>repo</code> 범위가 가장 확실하다.</li>
     <li>토큰은 만들 때 한 번만 보인다. 메모해 두고, 끝나면 GitHub 에서 지운다(Expiration 을 짧게 잡아도 된다).</li>
   </ul>
+
+  <h3>SSH 키 — 선택 (SSH 로 접속 · scp · 터널을 쓸 때만)</h3>
+  <p>
+    <strong>이 문서는 SSH 없이 끝까지 된다.</strong> 명령은 JupyterLab 터미널에서 치고, 대시보드는 RunPod 주소로 열고, 결과 파일도 JupyterLab 에서 내려받는다(<a href="#connect">03</a> · <a href="#disk">16</a>).
+    SSH 를 쓰려면 <strong>pod 를 만들기 전에</strong> 키를 등록해 둔다 — 키는 pod 가 만들어질 때 들어간다.
+  </p>
+  <div class="cmd">
+    <div class="cmd-head"><span>내 PC — Windows PowerShell</span><button type="button" class="copy">복사</button></div>
+<pre><code>if (!(Test-Path $env:USERPROFILE\.ssh\id_ed25519.pub)) { ssh-keygen -t ed25519 }   <span class="c"># 없으면 만든다. 묻는 것은 엔터</span>
+type $env:USERPROFILE\.ssh\id_ed25519.pub                                              <span class="c"># 나온 한 줄을 복사</span></code></pre>
+  </div>
+  <div class="cmd">
+    <div class="cmd-head"><span>내 PC — macOS · Linux</span><button type="button" class="copy">복사</button></div>
+<pre><code>ls ~/.ssh/id_ed25519.pub || ssh-keygen -t ed25519     <span class="c"># 없으면 만든다. 묻는 것은 엔터</span>
+cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 한 줄을 복사</span></code></pre>
+  </div>
+  <p>RunPod 웹 → 계정 Settings → <strong>SSH Public Keys</strong> 칸에 그 한 줄을 붙여 넣고 저장한다.</p>
+  <div class="note warn">
+    <span class="tag">붙여 넣는 것은 한 줄뿐 · ssh 를 칠 그 PC 의 키</span>
+    <ul>
+      <li><code>ssh-ed25519 AAAA… 이름@컴퓨터</code> 한 줄만 넣는다. <code>ssh-keygen</code> 이 그려 주는 <code>+--[ED25519 256]--+</code> 그림까지 넣지 않는다(11-18 첫 pod 에 그림이 같이 들어가 있었다).</li>
+      <li>키는 <strong>ssh 명령을 칠 PC 에서 만든 것</strong>이어야 한다. 다른 컴퓨터의 키만 등록돼 있으면 ssh 가 <code>password:</code> 를 묻는다 — RunPod 의 root 에는 비밀번호가 없어 무엇을 넣어도 안 된다(<a href="#trouble">15</a>).</li>
+      <li>이미 만든 pod 에 키를 더하려면 pod 안에서 <code>~/.ssh/authorized_keys</code> 에 한 줄을 붙인다(<a href="#ssh">03</a>).</li>
+    </ul>
+  </div>
 </section>
 
 <!-- ============================================================ -->
@@ -406,16 +446,16 @@ cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 
     <table>
       <thead><tr><th>칸</th><th>값</th><th>한 줄 이유</th></tr></thead>
       <tbody>
-        <tr><td class="k">Cloud</td><td><strong>Secure Cloud</strong> (Community 는 싸지만 공개 IP 확인 필요)</td><td>대시보드 터널 · 파일 내려받기에 공개 IP 가 필요하다</td></tr>
+        <tr><td class="k">Cloud</td><td><strong>Secure Cloud</strong> (Community 는 싸지만 공개 IP 확인 필요)</td><td>SSH(scp · 터널)에 공개 IP 가 필요하다. 대시보드 · JupyterLab 은 RunPod 주소로 열려 공개 IP 와 상관없다</td></tr>
         <tr><td class="k">GPU · 개수</td><td><strong>L40S × 1</strong> — 없으면 <a href="#no-gpu">대안 순위</a>(A100 SXM 80GB → RTX PRO 6000 → H100 PCIe). 값이 우선이면 RTX A6000 × 1</td><td>48 GB 면 학습 설정을 안 바꾼다. 근거는 <a href="#gpu-choice">아래</a></td></tr>
         <tr><td class="k">Template</td><td><strong>Runpod PyTorch</strong></td><td>SSH · JupyterLab 이 미리 들어 있다</td></tr>
         <tr><td class="k">└ CUDA</td><td><strong>12.8</strong> (태그의 <code>cu1281</code>)</td><td>드라이버 570 이상 서버 — 우리 torch(cu126 · cu128) 둘 다 된다. 서버 고를 폭이 가장 넓다</td></tr>
         <tr><td class="k">└ Ubuntu</td><td><strong>22.04</strong> (태그의 <code>ubuntu2204</code>) · 없으면 24.04</td><td>지금 서버와 같은 OS. 24.04 도 된다(11-18 첫 pod 가 24.04)</td></tr>
         <tr><td class="k">└ PyTorch 버전</td><td><strong>상관없다</strong> — 기본값 그대로</td><td>템플릿의 torch 는 안 쓴다. <code>02</code> 가 venv 에 2.11.0 을 따로 깐다(<a href="04_reproduction-handbook.html#venv">이유</a>)</td></tr>
         <tr><td class="k">Container Disk</td><td><strong>30 GB</strong></td><td>apt 패키지 · pip 캐시. 멈추면 지워지는 디스크</td></tr>
-        <tr><td class="k">Volume Disk · Mount Path</td><td><strong>100 GB</strong> · <code>/workspace</code></td><td>프로젝트 · venv · 체크포인트. 멈춰도 남는다</td></tr>
-        <tr><td class="k">Expose HTTP Ports</td><td><code>8888</code> 그대로 — <strong>8088 은 넣지 않는다</strong></td><td>8888 은 JupyterLab. 대시보드는 인증이 없어 SSH 터널로만 본다</td></tr>
-        <tr><td class="k">Expose TCP Ports</td><td><code>22</code></td><td>"SSH over exposed TCP" — 터널 · scp 가 된다</td></tr>
+        <tr><td class="k">Volume Disk · Mount Path</td><td><strong>100 GB</strong> · <code>/workspace</code></td><td>프로젝트 · venv · 시연 · 체크포인트. 멈춰도 남는다</td></tr>
+        <tr><td class="k">Expose HTTP Ports</td><td><code>8888</code> · <strong><code>8088</code></strong></td><td>8888 은 JupyterLab, 8088 은 대시보드(화면 · 키 조작 · 그래프). RunPod 이 <code>https://&lt;POD_ID&gt;-포트.proxy.runpod.net</code> 으로 열어 준다(<a href="#dash-url">03</a>). 대시보드에는 로그인이 없다 — 주소를 남에게 주지 않는다</td></tr>
+        <tr><td class="k">Expose TCP Ports</td><td><code>22</code></td><td>"SSH over exposed TCP" — SSH · 터널 · scp 가 된다</td></tr>
         <tr><td class="k">Environment Variables</td><td><code>NVIDIA_DRIVER_CAPABILITIES</code> = <code>all</code><br><code>JUPYTER_PASSWORD</code> = 긴 비밀번호</td><td>카메라 렌더(EGL)용 그래픽 라이브러리 · JupyterLab 잠금</td></tr>
         <tr><td class="k">Pricing</td><td><strong>On-Demand</strong></td><td>Spot 은 학습 중에 회수될 수 있다</td></tr>
       </tbody>
@@ -445,16 +485,16 @@ cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 
     <li><strong>Edit Template</strong>(이 pod 에만 적용)을 눌러:
       <ul>
         <li>Container Disk <strong>30</strong> GB · Volume Disk <strong>100</strong> GB · Volume Mount Path <code>/workspace</code></li>
-        <li>Expose HTTP Ports 는 <code>8888</code> 그대로 · Expose TCP Ports 에 <code>22</code> 가 있는지</li>
+        <li>Expose HTTP Ports 에 <code>8888</code> 과 <strong><code>8088</code></strong>(쉼표로 구분 <span class="st est">추정</span>) · Expose TCP Ports 에 <code>22</code> 가 있는지</li>
         <li>Environment Variables 에 <code>NVIDIA_DRIVER_CAPABILITIES</code> = <code>all</code>, <code>JUPYTER_PASSWORD</code> = 긴 비밀번호 추가</li>
         <li>Set Overrides(저장)</li>
       </ul></li>
     <li><strong>Pricing 은 On-Demand.</strong> "Start Jupyter Notebook" 같은 체크박스가 보이면 켠다 <span class="st est">추정</span>.</li>
     <li><strong>Deploy On-Demand</strong> → 상태가 <strong>Running</strong> 이 될 때까지 기다린다(이미지를 받느라 몇 분).</li>
-    <li><strong>Connect 탭</strong>에서 두 가지를 확인한다:
-        ① <strong>"SSH over exposed TCP"</strong> 명령(<code>ssh root@IP -p 포트 …</code>) — 이것을 <a href="#ssh">03</a> 에서 쓴다.
-        ② HTTP Services 의 <strong>Jupyter Lab</strong> 링크 — 웹에서 파일 보기(<a href="#jupyter">03</a>).
-        ①이 없으면 그 서버에 공개 IP 가 없는 것이다 — pod 를 지우고 다른 서버로 다시 만든다 <span class="st est">추정</span>.</li>
+    <li><strong>Connect 탭</strong>에서 확인한다:
+        ① HTTP Services 의 <strong>Jupyter Lab</strong>(8888) 링크 — 명령은 여기 터미널에서 친다(<a href="#connect">03</a>).
+        ② HTTP Services 의 <strong>8088</strong> — <strong>대시보드를 띄우기 전까지 Initializing 이 정상</strong>이다. <code>--host 0.0.0.0</code> 으로 띄우면 Ready 가 된다(<a href="#dash-url">03</a>).
+        ③ (SSH 를 쓸 때) <strong>"SSH over exposed TCP"</strong> 명령(<code>ssh root@IP -p 포트 …</code>). 없으면 그 서버에 공개 IP 가 없는 것이다 <span class="st est">추정</span>.</li>
   </ol>
 
   <h3>템플릿 · CUDA 를 이렇게 고르는 이유</h3>
@@ -463,13 +503,13 @@ cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 
         RunPod PyTorch 이미지에는 2.11 이 없고, 시스템에 깐 것은 pod 를 멈추면 지워진다(<a href="04_reproduction-handbook.html#venv">04 §07</a>).</li>
     <li><strong>템플릿의 CUDA 버전은 "그 버전을 지원하는 드라이버의 서버에만 뜬다" 는 조건으로만 작용한다.</strong> 12.8 이면 드라이버 570 이상 → cu126 · cu128 둘 다 된다.
         12.9 · 13.x 도 되지만 고를 수 있는 서버가 좁아질 뿐 얻는 것이 없다 <span class="st est">추정</span>.</li>
-    <li><strong>Ubuntu 22.04</strong> 는 기준 서버와 같다. 24.04 도 된다 — 2026-11-18 첫 pod(L40S)가 24.04 이미지였고 <code>00</code> · <code>01</code> 을 통과했다.
-        이 이미지에는 Python 3.12(venv · 헤더까지)가 이미 들어 있고 deadsnakes 저장소도 미리 등록돼 있어, <code>01</code> 은 Python 단계를 건너뛴다.
-        <code>02</code> 이후는 실측 대기(<a href="04_reproduction-handbook.html#os">04 §06</a>).</li>
+    <li><strong>Ubuntu 22.04</strong> 는 기준 서버와 같다. 24.04 도 된다 — 2026-11-18 첫 pod(L40S)가 24.04 이미지였고 설치(<code>00</code> ~ <code>03</code>) · <code>preflight</code> 를 통과했다.
+        이 이미지에는 Python 3.12(venv · 헤더까지)가 이미 들어 있고 deadsnakes 저장소도 미리 등록돼 있어, <code>01</code> 은 Python 단계를 건너뛴다(<a href="04_reproduction-handbook.html#os">04 §06</a>).</li>
   </ul>
   <div class="note warn">
-    <span class="tag">만든 뒤 설정을 바꾸면</span>
-    <p>Edit Pod 로 환경변수 · 디스크를 바꿔 저장하면 pod 가 다시 시작되고 <code>/workspace</code> 밖이 지워진다. 그 뒤에는 <a href="#restart">12 다시 켤 때</a>와 같다.</p>
+    <span class="tag">만든 뒤 설정을 바꾸면 — 8088 을 나중에 넣을 때도</span>
+    <p>Edit Pod 로 포트 · 환경변수 · 디스크를 바꿔 저장하면 pod 가 다시 시작되고 <code>/workspace</code> 밖이 지워진다(apt 로 깐 것 · tmux 세션 · 돌던 프로세스). 그 뒤에는 <a href="#restart">14 다시 켤 때</a>와 같다.
+       8088 을 빠뜨렸으면 설치를 시작하기 전에 넣는 것이 가장 싸다 — 11-18 첫 pod 는 설치 전에 Edit Pod 로 8088 을 더했다.</p>
   </div>
 
   <h3 id="no-gpu">L40S 가 없을 때 — 왜 없나 · 어디서 보나 · 대안 순위</h3>
@@ -496,7 +536,7 @@ cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 
       <tbody>
         <tr><td class="k">—</td><td>L40S (기준)</td><td>48 GB · 16 · 94 GB</td><td>$1.09 / $0.79</td><td>$10.9 / $7.9</td><td>없을 때 아래 순서로</td></tr>
         <tr><td class="k"><strong>1</strong></td><td><strong>A100 SXM 80GB</strong></td><td>80 GB · 16 · 125 GB</td><td>$2.19 / $1.39</td><td>$21.9 / $13.9</td><td><strong>조건을 채우는 것 중 가장 싸다.</strong> 지금 서버와 같은 A100 이라 카메라 렌더(EGL)와 torch(cu126)가 이미 확인된 조합이다. 같은 A100 이라도 PCIe 판은 vCPU 8 이라 조건에 못 미친다</td></tr>
-        <tr><td class="k"><strong>2</strong></td><td><strong>RTX PRO 6000</strong></td><td>96 GB · 16 · 188 GB</td><td>$2.69 / $1.69</td><td>$26.9 / $16.9</td><td>그래픽이 온전한 워크스테이션 GPU 라 카메라 렌더에 맞는다. Blackwell 이라 <code>02</code> 가 cu128 을 고른다. torch.compile 은 미검증 — 문제가 나면 끈다(<a href="#trouble">13</a>). MIG 조각(48GB · 24GB)이 아니라 통째로 된 것을 고른다</td></tr>
+        <tr><td class="k"><strong>2</strong></td><td><strong>RTX PRO 6000</strong></td><td>96 GB · 16 · 188 GB</td><td>$2.69 / $1.69</td><td>$26.9 / $16.9</td><td>그래픽이 온전한 워크스테이션 GPU 라 카메라 렌더에 맞는다. Blackwell 이라 <code>02</code> 가 cu128 을 고른다. torch.compile 은 미검증 — 문제가 나면 끈다(<a href="#trouble">15</a>). MIG 조각(48GB · 24GB)이 아니라 통째로 된 것을 고른다</td></tr>
         <tr><td class="k"><strong>3</strong></td><td><strong>H100 PCIe 80GB</strong></td><td>80 GB · 16 · 188 GB</td><td>$2.89 / $1.99</td><td>$28.9 / $19.9</td><td>계산은 가장 빠르지만 이 프로젝트에는 이득이 없다. H100 은 칩의 일부만 그래픽을 처리한다(NVIDIA Hopper 백서) — 카메라 렌더 속도는 실측 대기. <code>preflight.sh</code> 2번 줄의 ms 를 본다</td></tr>
       </tbody>
     </table>
@@ -517,7 +557,7 @@ cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 
     <table>
       <thead><tr><th>항목</th><th>최소 (설정을 줄여서 돈다)</th><th>권장 (지금 설정 그대로)</th></tr></thead>
       <tbody>
-        <tr><td class="k">GPU VRAM</td><td>24 GB — 버퍼 10,000 / 20,000 (약 19 GiB)</td><td><strong>48 GB</strong> — 버퍼 40,000 / 40,000 (실측 37 GiB)</td></tr>
+        <tr><td class="k">GPU VRAM</td><td>24 GB — 버퍼 10,000 / 20,000 (약 19 GiB)</td><td><strong>48 GB</strong> — 버퍼 40,000 / 40,000 (Panda 실측 37 GiB. UR5e 도 전이 크기가 같다)</td></tr>
         <tr><td class="k">vCPU</td><td>8 <span class="st est">추정</span></td><td>16 이상 <span class="st est">추정</span> — 체크포인트 저장이 CPU 일이다</td></tr>
         <tr><td class="k">RAM</td><td>32 GB <span class="st est">추정</span></td><td>64 GB <span class="st est">추정</span> — 버퍼가 GPU 에 있어 RAM 은 적게 든다. 저장도 한 프레임씩 옮긴다</td></tr>
         <tr><td class="k">디스크</td><td>볼륨 60 GB · 컨테이너 30 GB</td><td>볼륨 100 GB · 컨테이너 30 GB</td></tr>
@@ -530,12 +570,13 @@ cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 
       <thead><tr><th>버퍼를 줄이면 잃는 것</th><th>48 GB · 40,000 / 40,000</th><th>32 GB · 20,000 / 30,000</th><th>24 GB · 10,000 / 20,000</th></tr></thead>
       <tbody>
         <tr><td class="k">온라인 버퍼의 기억 범위 (초당 14.6 전이)</td><td>약 46분</td><td>약 23분</td><td>약 11분</td></tr>
-        <tr><td class="k">시연(19,612)을 밀어내기 전 개입이 들어갈 자리</td><td>20,388</td><td>10,388</td><td><strong>388</strong> — 개입하자마자 시연이 밀려난다</td></tr>
-        <tr><td class="k">기준 런(03)과 비교</td><td>그대로 비교된다</td><td colspan="2">학습 동작이 달라져 시간 · 성공률을 바로 비교할 수 없다(<a href="03_scenario-online-offline-data-mixed.html#q17">03 Q17</a>)</td></tr>
+        <tr><td class="k">시연을 밀어내기 전 개입이 들어갈 자리 (오프라인 칸 − 시연 프레임. UR5e 29판 7,253 기준)</td><td>32,747</td><td>22,747</td><td>12,747</td></tr>
+        <tr><td class="k">같은 문제를 Panda 시연(19,612)으로 보면</td><td>20,388</td><td>10,388</td><td><strong>388</strong> — 개입하자마자 시연이 밀려난다</td></tr>
+        <tr><td class="k">다른 런과 비교</td><td>그대로 비교된다</td><td colspan="2">학습 동작이 달라져 시간 · 성공률을 바로 비교할 수 없다(<a href="03_scenario-online-offline-data-mixed.html#q17">03 Q17</a>)</td></tr>
       </tbody>
     </table>
   </div>
-  <p class="sub">24 GB 는 스모크 설정(5,000 / 40,000, 약 24 GiB)도 그대로는 안 들어간다 <span class="st est">추정</span>.</p>
+  <p class="sub">24 GB 는 스모크 설정(5,000 / 40,000, 약 24 GiB — UR5e · Panda 같다)도 그대로는 안 들어간다 <span class="st est">추정</span>.</p>
 
   <h4>GPU 비교 — L40S 기준</h4>
   <div class="tw">
@@ -568,57 +609,96 @@ cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 
 </section>
 
 <!-- ============================================================ -->
-<section id="ssh">
-  <h2><span class="num">03</span>SSH 접속</h2>
-  <div class="cmd">
-    <div class="cmd-head"><span>내 PC — Connect 탭의 "SSH over exposed TCP" 명령에 -L 8088:localhost:8088 만 붙인다</span><button type="button" class="copy">복사</button></div>
-<pre><code>ssh -L 8088:localhost:8088 root@&lt;POD_IP&gt; -p &lt;SSH_PORT&gt; -i ~/.ssh/id_ed25519</code></pre>
-  </div>
-  <ul>
-    <li><code>-L 8088:localhost:8088</code> 은 대시보드 터널이다. 이 SSH 창이 열려 있는 동안 내 PC 브라우저의 <code>http://localhost:8088/</code> 이 pod 의 대시보드로 이어진다.</li>
-    <li>"SSH" 칸의 <code>…@ssh.runpod.io</code> 명령(기본 SSH)은 쓰지 않는다. 그쪽은 파일 전송(scp)이 안 되고 터널도 기대할 수 없다.</li>
-    <li>처음 접속하면 <code>Are you sure you want to continue connecting</code> 에 <code>yes</code>.</li>
-  </ul>
+<section id="connect">
+  <h2><span class="num">03</span>접속 — 터미널 · 대시보드 주소 · (선택) SSH</h2>
+
+  <h3 id="jupyter">명령 치는 곳 — JupyterLab 터미널</h3>
+  <p>공식 PyTorch 템플릿에 JupyterLab 이 들어 있어, 브라우저만으로 명령 · 파일 편집 · 내려받기가 된다. SSH 키가 없어도 된다.</p>
+  <ol class="steps">
+    <li>pod 의 <strong>Connect → HTTP Services → Jupyter Lab</strong>(포트 8888). 비밀번호는 <code>JUPYTER_PASSWORD</code> 에 넣은 값. 처음 켤 때는 1분쯤 걸린다 — 빈 화면이면 기다렸다 새로 고침.</li>
+    <li><strong>File → New → Terminal</strong> 로 pod 셸을 연다. 설치(<a href="#install1">04</a>)는 여기서 하고, tmux 세션(<a href="#tmux">05</a>)을 만든 뒤에는 여기서 <code>tmux attach -t hil</code>.</li>
+    <li>왼쪽 파일 탐색기에서 <code>/workspace/hil-serl_franca_panda_gpu-learner</code> 로 간다.
+        <code>.py</code> · <code>.json</code> · <code>.sh</code> 는 두 번 누르면 편집기로 열린다(<kbd>Ctrl</kbd>+<kbd>S</kbd> 저장). <code>docs/*.html</code> 문서는 그대로 그려져 보인다(복사 버튼까지 쓰려면 위의 "Trust HTML"). <code>.md</code> 는 오른쪽 클릭 → Open With → Markdown Preview.</li>
+    <li>파일을 내 PC 로 받으려면 오른쪽 클릭 → <strong>Download</strong>. 폴더는 먼저 <code>tar</code> 로 묶는다(<a href="#disk">16</a>).</li>
+  </ol>
   <div class="cmd">
     <div class="cmd-head"><span>pod 안 — 받은 서버 확인 (출력은 적어 둔다)</span><button type="button" class="copy">복사</button></div>
 <pre><code>nvidia-smi                          <span class="c"># GPU 이름 · 메모리 · Driver Version</span>
 df -h /workspace                    <span class="c"># 볼륨 크기 (100G 근처)</span>
 grep PRETTY_NAME /etc/os-release    <span class="c"># Ubuntu 22.04 또는 24.04</span>
-nproc                               <span class="c"># vCPU 수 — 체크포인트 저장 시간에 영향</span></code></pre>
+nproc                               <span class="c"># vCPU 수 — 체크포인트 저장 시간에 영향</span>
+echo $RUNPOD_POD_ID                 <span class="c"># pod ID — 대시보드 주소에 들어간다</span></code></pre>
   </div>
-
-  <h3 id="jupyter">브라우저로 파일 보기 · 고치기 — JupyterLab</h3>
-  <p>VS Code 없이 웹에서 파일을 보고 고친다. 공식 PyTorch 템플릿에 JupyterLab 이 들어 있어 따로 깔 것이 없다.</p>
-  <ol class="steps">
-    <li>pod 의 <strong>Connect → HTTP Services → Jupyter Lab</strong>(포트 8888). 비밀번호는 <code>JUPYTER_PASSWORD</code> 에 넣은 값. 처음 켤 때는 1분쯤 걸린다 — 빈 화면이면 기다렸다 새로 고침.</li>
-    <li>왼쪽 파일 탐색기에서 <code>/workspace/hil-serl_franca_panda_gpu-learner</code> 로 간다.</li>
-    <li><code>.py</code> · <code>.json</code> · <code>.sh</code> 는 두 번 누르면 편집기로 열린다(<kbd>Ctrl</kbd>+<kbd>S</kbd> 저장). <code>docs/*.html</code> 문서는 그대로 그려져 보인다(복사 버튼까지 쓰려면 위의 "Trust HTML"). <code>.md</code> 는 오른쪽 클릭 → Open With → Markdown Preview.</li>
-    <li>File → New → Terminal 로 pod 셸도 열린다. 여기서 <code>tmux attach -t hil</code> 하면 SSH 창과 같은 learner · actor 창이 보인다.</li>
-  </ol>
   <ul class="sub">
     <li><code>/workspace</code> 안에서 고친 것만 pod 를 멈춰도 남는다.</li>
-    <li>대시보드(8088)는 여기서 열지 않는다 — 그대로 SSH 터널(<code>-L 8088</code>)로 본다.</li>
+    <li>대시보드는 JupyterLab 안에서 열리지 않는다(<code>jupyter-server-proxy</code> 가 깔려 있지 않다, 11-18 확인). 아래 RunPod 주소로 연다.</li>
     <li>VS Code 모양 그대로가 필요하면 브라우저용 VS Code(code-server)를 <code>/workspace</code> 에 깔아 SSH 터널로 여는 방법도 있다 <span class="st wait">실측 대기</span>:
         <code>curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/workspace/.code-server</code> 뒤
         tmux 새 창에서 <code>/workspace/.code-server/bin/code-server --bind-addr 127.0.0.1:8443 --auth none /workspace/hil-serl_franca_panda_gpu-learner</code>,
         내 PC 의 SSH 에 <code>-L 8443:localhost:8443</code> 을 더 붙이고 <code>http://localhost:8443/</code>. pod 안 127.0.0.1 에만 열리므로 SSH 터널로만 들어온다.</li>
   </ul>
+
+  <h3 id="dash-url">대시보드 주소 — RunPod 프록시</h3>
+  <div class="cmd">
+    <div class="cmd-head"><span>pod 안 — 내 대시보드 주소 찍기</span><button type="button" class="copy">복사</button></div>
+<pre><code>echo "https://${RUNPOD_POD_ID}-8088.proxy.runpod.net/"</code></pre>
+  </div>
+  <ul>
+    <li><strong>주소 규칙:</strong> <code>https://&lt;POD_ID&gt;-&lt;포트&gt;.proxy.runpod.net/</code>. POD_ID 는 RunPod 화면의 pod 이름 아래 ID 와 같다.
+        같은 pod 는 Stop → Start 해도 주소가 그대로고, pod 를 새로 만들면 바뀐다. Expose HTTP Ports 에 넣은 포트만 열린다.</li>
+    <li><strong>대시보드는 <code>--host 0.0.0.0</code> 을 붙여 띄운다:</strong> <code>bash scripts/dashboard.sh --host 0.0.0.0</code>.
+        붙이지 않으면 pod 안(<code>127.0.0.1</code>)에만 열려 RunPod 이 닿지 못한다 — Connect 탭의 8088 이 Initializing 에 머물고 주소가 열리지 않는다(11-18 실제로 겪음).
+        다시 띄울 때마다 붙인다.</li>
+    <li><strong>브라우저의 <code>localhost</code> 는 내 PC 자신이다.</strong> <code>localhost:8088</code> 은 pod 로 가지 않는다 — SSH 터널을 열었을 때만 pod 로 이어진다(아래).</li>
+    <li><strong>속도:</strong> 시뮬레이터 렌더 · 학습 속도는 보는 방법과 상관없다(모두 pod 의 GPU 에서 돈다). 달라지는 것은 화면이 눈에 오는 지연과 키가 pod 에 닿는 지연뿐이고,
+        프록시는 RunPod 중계 서버를 한 번 더 거쳐 SSH 터널과 같거나 조금 길다 <span class="st wait">실측 대기</span>. 11-18 L40S pod 에서 시뮬레이터 영상이 이 주소로 보이는 것은 확인했다.</li>
+  </ul>
+  <div class="cmd">
+    <div class="cmd-head"><span>(선택) 내 PC PowerShell — 키 한 번 오가는 시간 재기. 둘째 · 셋째 숫자(초)를 본다</span><button type="button" class="copy">복사</button></div>
+<pre><code>$u = "https://&lt;POD_ID&gt;-8088.proxy.runpod.net/control-info"
+curl.exe -s -o NUL -o NUL -o NUL -w "%{time_total}`n" $u $u $u</code></pre>
+  </div>
+  <div class="note bad">
+    <span class="tag">대시보드에는 로그인이 없다</span>
+    <p>주소를 아는 사람은 누구나 시뮬레이터 화면과 학습 그래프를 보고, 허용된 조작 키(<code>configs/keymap.json</code> 의 키)를 로봇에 보낼 수 있다. 셸 · 파일 접근은 없다.
+       주소를 남에게 주지 않고, 쓰지 않을 때는 대시보드를 끈다. 접속 토큰은 할 일이다(<a href="04_reproduction-handbook.html#todo">04 T7</a>).</p>
+  </div>
+
+  <h3 id="ssh">SSH — 선택 (scp · 터널)</h3>
+  <div class="cmd">
+    <div class="cmd-head"><span>내 PC — Connect 탭의 "SSH over exposed TCP" 명령. 터널이 필요하면 -L 을 붙인다</span><button type="button" class="copy">복사</button></div>
+<pre><code>ssh -L 8088:localhost:8088 root@&lt;POD_IP&gt; -p &lt;SSH_PORT&gt; -i ~/.ssh/id_ed25519</code></pre>
+  </div>
+  <ul>
+    <li><code>-L 8088:localhost:8088</code> 은 대시보드 터널이다. 이 SSH 창이 열려 있는 동안 내 PC 브라우저의 <code>http://localhost:8088/</code> 이 pod 의 대시보드로 이어진다.
+        내 PC 의 8088 을 다른 프로그램(VS Code 포트 포워딩 등)이 이미 쓰고 있으면 <code>-L 18088:localhost:8088</code> 으로 바꾸고 <code>http://localhost:18088/</code>.</li>
+    <li>"SSH" 칸의 <code>…@ssh.runpod.io</code> 명령(기본 SSH)은 쓰지 않는다. 그쪽은 파일 전송(scp)이 안 되고 터널도 기대할 수 없다.</li>
+    <li>처음 접속하면 <code>Are you sure you want to continue connecting</code> 에 <code>yes</code>.</li>
+    <li><code>root@…'s password:</code> 를 물으면 이 PC 의 키가 pod 에 없는 것이다. <code>Identity file … not accessible</code> 이 같이 나오면 PC 에 키 파일부터 없다 → <a href="#prep">01</a> 에서 키를 만든다.</li>
+  </ul>
+  <div class="cmd">
+    <div class="cmd-head"><span>pod 안(JupyterLab 터미널) — 이미 만든 pod 에 내 PC 키 더하기. 바로 된다</span><button type="button" class="copy">복사</button></div>
+<pre><code>echo 'ssh-ed25519 AAAA…(내 PC 의 id_ed25519.pub 한 줄)' &gt;&gt; ~/.ssh/authorized_keys</code></pre>
+  </div>
+  <p class="sub"><code>~/.ssh</code> 는 <code>/workspace</code> 밖이라 pod 를 다시 켜면 이렇게 더한 키는 지워진다. 다음 pod 를 위해 RunPod Settings 의 SSH Public Keys 에도 넣는다(<a href="#prep">01</a>).
+     이미 있는 pod 가 다시 켤 때 Settings 의 새 키를 받는지는 <span class="st est">추정</span> — 안 되면 위 한 줄을 다시 친다.</p>
 </section>
 
 <!-- ============================================================ -->
 <section id="install1">
   <h2><span class="num">04</span>설치 ① — 저장소와 시스템 패키지</h2>
-  <p>이 단계는 tmux 밖에서 한다. tmux 는 <code>01</code> 이 깔아 준다.</p>
+  <p>이 단계는 tmux 밖(JupyterLab 터미널)에서 한다. tmux 는 <code>01</code> 이 깔아 준다.</p>
   <div class="cmd">
     <div class="cmd-head"><span>pod 안 — clone</span><button type="button" class="copy">복사</button></div>
 <pre><code>cd /workspace &amp;&amp; git clone https://github.com/gguldong2/hil-serl_franca_panda_gpu-learner &amp;&amp; cd hil-serl_franca_panda_gpu-learner/
-<span class="c">#   공개 저장소라 아무것도 묻지 않는다. Username 을 물으면 주소가 틀렸다 → Ctrl+C 후 주소 확인 (13 막힐 때)</span>
+<span class="c">#   공개 저장소라 아무것도 묻지 않는다. Username 을 물으면 주소가 틀렸다 → Ctrl+C 후 주소 확인 (15 막힐 때)</span>
 grep -c 'xvfb xdotool tmux' scripts/server22/01_install_system.sh   <span class="c"># 1 이어야 한다</span>
 grep -c NEED_SYS_FIX scripts/preflight.sh                           <span class="c"># 1 이상이어야 한다</span>
-grep -c dedup_deadsnakes scripts/server22/01_install_system.sh      <span class="c"># 1 이상이어야 한다 (11-18 수정)</span></code></pre>
+grep -c dedup_deadsnakes scripts/server22/01_install_system.sh      <span class="c"># 1 이상이어야 한다 (11-18 수정)</span>
+grep -c fonts-nanum-coding scripts/server22/01_install_system.sh    <span class="c"># 1 이상이어야 한다 (11-18 한글 글꼴)</span></code></pre>
   </div>
   <p class="sub">폴더 이름은 저장소 이름 그대로 <code>/workspace/hil-serl_franca_panda_gpu-learner</code> 이다. 이 문서의 모든 경로가 이 이름을 쓴다. 기준 서버의 폴더 이름(<code>hil-serl-mujoco-franka</code>)과 다르지만, 스크립트는 경로를 박아 두지 않아 상관없다.</p>
-  <p class="sub">위 세 줄 중 하나라도 <code>0</code> 이면 옛 버전이다 — 이 문서의 절차가 맞지 않는다. 저장소에 최신이 올라가 있는지 먼저 확인한다. <code>git: command not found</code> 면 <code>apt-get update &amp;&amp; apt-get install -y git</code>.</p>
+  <p class="sub">위 네 줄 중 하나라도 <code>0</code> 이면 옛 버전이다 — 이 문서의 절차가 맞지 않는다. 저장소에 최신이 올라가 있는지 먼저 확인한다. <code>git: command not found</code> 면 <code>apt-get update &amp;&amp; apt-get install -y git</code>.</p>
 
   <div class="cmd">
     <div class="cmd-head"><span>pod 안 — 점검(읽기만) → 시스템 패키지 (1~3분)</span><button type="button" class="copy">복사</button></div>
@@ -631,7 +711,7 @@ bash scripts/server22/01_install_system.sh</code></pre>
       <thead><tr><th>명령</th><th>나와야 하는 것</th><th>아니면</th></tr></thead>
       <tbody>
         <tr><td class="k"><code>00_check_server.sh</code></td><td>GPU · 드라이버 · compute capability · EGL 라이브러리 유무. 아무것도 바꾸지 않는다</td><td>"드라이버 570.86 미만" 권고가 5090 에서 나오면 그 pod 로는 안 된다 → CUDA 12.8 필터로 다시 만든다</td></tr>
-        <tr><td class="k"><code>01_install_system.sh</code></td><td>마지막 줄 <code>[01] 완료. 다음: …</code>. 24.04 이미지면 그 위에 <code>python3.12 · venv · 헤더가 이미 있다 → 건너뜀</code></td><td>apt 오류면 한 번 더 돌린다(일시적인 미러 문제가 많다). <code>Conflicting values set for option Signed-By</code> 면 옛 <code>01</code> 이다 → <a href="#trouble">13</a>. 깔리는 것: Xvfb · xdotool · tmux · gcc · ffmpeg · GL 라이브러리 · (없으면) Python 3.12</td></tr>
+        <tr><td class="k"><code>01_install_system.sh</code></td><td>마지막 줄 <code>[01] 완료. 다음: …</code>. 24.04 이미지면 그 위에 <code>python3.12 · venv · 헤더가 이미 있다 → 건너뜀</code></td><td>apt 오류면 한 번 더 돌린다(일시적인 미러 문제가 많다). <code>Conflicting values set for option Signed-By</code> 면 옛 <code>01</code> 이다 → <a href="#trouble">15</a>. 깔리는 것: Xvfb · xdotool · tmux · gcc · ffmpeg · GL 라이브러리 · 한글 글꼴(<code>fonts-nanum-coding</code>) · (없으면) Python 3.12</td></tr>
       </tbody>
     </table>
   </div>
@@ -641,36 +721,47 @@ bash scripts/server22/01_install_system.sh</code></pre>
 <section id="tmux">
   <h2><span class="num">05</span>tmux 세션 만들기</h2>
   <p>
-    여기부터는 모두 tmux 안에서 한다. tmux 안에서 띄운 것은 SSH 가 끊기거나 내 PC 를 꺼도 pod 에서 계속 돈다.
-    아래 블록이 창 네 개를 만들고, 모든 창에서 <strong>프로젝트 폴더</strong>로 시작하며 <strong>학습 설정 경로(<code>CFG</code>)</strong>가 미리 잡히게 한다.
-    그래서 <code>bash scripts/train.sh …</code> 를 칠 때 <code>CFG=</code> 를 붙이지 않아도 된다.
+    여기부터는 모두 tmux 안에서 한다. tmux 안에서 띄운 것은 브라우저 탭 · SSH 가 끊기거나 내 PC 를 꺼도 pod 에서 계속 돈다.
+    아래 블록은 <strong>main 창 하나를 세 칸(dash · learner · actor)으로 나누고, 명령용 shell 창을 따로</strong> 만든다.
+    모든 칸이 <strong>프로젝트 폴더</strong>에서 시작하고 <strong>학습 설정 경로(<code>CFG</code>)</strong>가 미리 잡혀 있어서, <code>bash scripts/train.sh …</code> 를 칠 때 <code>CFG=</code> 를 붙이지 않아도 된다.
   </p>
   <div class="cmd">
     <div class="cmd-head"><span>pod 안 — 세션 만들기 (처음, 그리고 pod 를 다시 켤 때마다 같은 블록)</span><button type="button" class="copy">복사</button></div>
-<pre><code>printf 'set -g mouse on\nset -g history-limit 50000\n' &gt; ~/.tmux.conf
-tmux new -d -s hil -n shell -c /workspace/hil-serl_franca_panda_gpu-learner -e CFG=configs/train_config_panda_runpod.json
-tmux new-window -t hil -n dash
-tmux new-window -t hil -n learner
-tmux new-window -t hil -n actor
-tmux select-window -t hil:shell
+<pre><code>cd /workspace/hil-serl_franca_panda_gpu-learner
+printf 'set -g mouse on\nset -g history-limit 50000\n' &gt; ~/.tmux.conf
+C=configs/train_config_ur5e_runpod.json
+tmux new -d -s hil -n main -c "$PWD" -e CFG=$C
+tmux split-window -h -t hil:main
+tmux split-window -v -t hil:main.1
+tmux new-window -d -t hil -n shell
+tmux set -g pane-border-status top
+tmux set -g pane-border-format ' #{@t} '
+tmux set -p -t hil:main.0 @t dash
+tmux set -p -t hil:main.1 @t learner
+tmux set -p -t hil:main.2 @t actor
+tmux set -p -t hil:shell.0 @t shell
+tmux select-pane -t hil:main.0
 tmux attach -t hil</code></pre>
   </div>
   <div class="tw">
     <table>
-      <thead><tr><th>창</th><th>이름</th><th>여기서 하는 것</th></tr></thead>
+      <thead><tr><th>어디</th><th>이름</th><th>여기서 하는 것</th></tr></thead>
       <tbody>
-        <tr><td class="k">0</td><td>shell</td><td>설치 · 설정 · <code>train.sh status</code> · <code>train.sh stop</code> · <code>nvidia-smi</code></td></tr>
-        <tr><td class="k">1</td><td>dash</td><td><code>bash scripts/dashboard.sh</code> — 화면 보기 · 조작 · 그래프</td></tr>
-        <tr><td class="k">2</td><td>learner</td><td><code>bash scripts/train.sh learner</code></td></tr>
-        <tr><td class="k">3</td><td>actor</td><td><code>bash scripts/train.sh actor</code></td></tr>
+        <tr><td class="k">main 창 왼쪽 절반</td><td>dash</td><td><code>bash scripts/dashboard.sh --host 0.0.0.0</code> — 화면 보기 · 조작 · 그래프</td></tr>
+        <tr><td class="k">main 창 오른쪽 위</td><td>learner</td><td><code>bash scripts/train.sh learner</code></td></tr>
+        <tr><td class="k">main 창 오른쪽 아래</td><td>actor</td><td>시뮬레이터는 모두 여기서 — <code>teleop.sh</code> · <code>record.sh</code> · <code>train.sh actor</code> · 추론</td></tr>
+        <tr><td class="k">shell 창</td><td>shell</td><td>설정 · 병합 · <code>train.sh status</code> · <code>stop</code> · <code>nvidia-smi</code></td></tr>
       </tbody>
     </table>
   </div>
+  <p class="sub">칸 위쪽 테두리에 이름이 보인다. 11-18 L40S pod 에서 이 블록으로 위치 · 프로젝트 폴더 · <code>CFG</code> 가 모든 칸에 잡히는 것을 확인했다.</p>
   <div class="tw">
     <table>
       <thead><tr><th>하려는 것</th><th>키</th></tr></thead>
       <tbody>
-        <tr><td class="k">창 바꾸기</td><td><kbd>Ctrl</kbd>+<kbd>b</kbd> 뗀 뒤 <kbd>0</kbd> ~ <kbd>3</kbd> · 아래 상태줄의 창 이름을 마우스로 눌러도 된다</td></tr>
+        <tr><td class="k">칸 옮기기</td><td>마우스로 칸 클릭 · 또는 <kbd>Ctrl</kbd>+<kbd>b</kbd> 뗀 뒤 방향키</td></tr>
+        <tr><td class="k">한 칸만 크게 보기 / 되돌리기</td><td><kbd>Ctrl</kbd>+<kbd>b</kbd> 뒤 <kbd>z</kbd></td></tr>
+        <tr><td class="k">main ↔ shell 창</td><td><kbd>Ctrl</kbd>+<kbd>b</kbd> 뒤 <kbd>0</kbd> / <kbd>1</kbd> · 아래 상태줄의 창 이름을 눌러도 된다</td></tr>
         <tr><td class="k">로그 위로 올려 보기</td><td>마우스 휠 (빠져나오기 <kbd>q</kbd>) · 또는 <kbd>Ctrl</kbd>+<kbd>b</kbd> 뒤 <kbd>[</kbd></td></tr>
         <tr><td class="k">글자 복사</td><td>마우스를 켜 두었으므로 <kbd>Shift</kbd> 를 누른 채 끌어서 선택 (터미널마다 다를 수 있다)</td></tr>
         <tr><td class="k">세션에서 빠져나오기 (계속 돈다)</td><td><kbd>Ctrl</kbd>+<kbd>b</kbd> 뒤 <kbd>d</kbd></td></tr>
@@ -682,13 +773,18 @@ tmux attach -t hil</code></pre>
   <div class="note">
     <span class="tag">알아 둘 것</span>
     <ul>
-      <li><code>CFG</code> 는 이 세션의 창에만 들어간다. tmux 밖에서 <code>train.sh</code> 를 치면 기본 설정(<code>train_config_panda_place_gpu.json</code>)을 보게 된다. 확인: <code>echo $CFG</code>.</li>
+      <li><code>CFG</code> 는 이 세션의 칸에만 들어간다. tmux 밖에서 <code>train.sh</code> 를 치면 기본 설정(Panda, <code>train_config_panda_place_gpu.json</code>)을 보게 된다. 확인: <code>echo $CFG</code>.</li>
+      <li><code>configs/train_config_ur5e_runpod.json</code> 은 <a href="#config">07</a> 에서 만든다. 그 전에는 <code>CFG</code> 가 아직 없는 파일을 가리키는 것이 정상이다.</li>
       <li><code>teleop.sh</code> · <code>record.sh</code> 도 <code>CFG</code> 를 자기 설정으로 읽는다. 이 세션 안에서는 앞에 env 설정을 직접 붙인다 —
-        <code>CFG=configs/env_config_panda_place_teleop.json bash scripts/teleop.sh</code>,
-        <code>CFG=configs/env_config_panda_place_record.json bash scripts/record.sh 01</code>. 안 붙이면 학습 설정이라며 멈추고 이 명령을 알려 준다(11-18).</li>
+        <code>CFG=configs/env_config_ur5e_place_teleop.json bash scripts/teleop.sh</code>,
+        <code>CFG=configs/env_config_ur5e_place_record.json bash scripts/record.sh 01</code>. 안 붙이면 학습 설정이라며 멈추고 이 명령을 알려 준다(11-18).</li>
+      <li>세션을 이미 다른 <code>CFG</code>(예: Panda)로 만들었다면 지우지 않고 바꿀 수 있다:
+        아무 칸에서 <code>tmux set-environment -t hil CFG configs/train_config_ur5e_runpod.json</code>(앞으로 여는 칸용),
+        이미 열린 칸마다 <code>export CFG=configs/train_config_ur5e_runpod.json</code>.</li>
       <li><code>duplicate session: hil</code> 이 나오면 세션이 이미 있다 → <code>tmux attach -t hil</code>.</li>
-      <li>블록 뒤에 <code>no server running</code> 이 줄줄이 나오면 둘째 줄(<code>tmux new …</code>)이 실패한 것이다. 화면에서 접힌 줄을 복사해 <code>-e</code> 뒤가 다음 줄로 넘어간 경우가 많다(11-18 실제로 겪음) → 복사 버튼으로 다시 붙인다.</li>
+      <li>블록 뒤에 <code>no server running</code> 이 줄줄이 나오면 <code>tmux new …</code> 줄이 실패한 것이다. 화면에서 접힌 줄을 복사해 <code>-e</code> 뒤가 다음 줄로 넘어간 경우가 많다(11-18 실제로 겪음) → 복사 버튼으로 다시 붙인다.</li>
       <li>tmux 세션과 <code>~/.tmux.conf</code> 는 pod 를 멈추면 사라진다. 다시 켜면 이 블록을 그대로 다시 친다.</li>
+      <li>칸을 나누지 않고 창 네 개(shell · dash · learner · actor)로 쓰고 싶으면 <code>split-window</code> 두 줄 대신 <code>tmux new-window -t hil -n learner</code> 처럼 창을 만들고 <kbd>Ctrl</kbd>+<kbd>b</kbd> 뒤 숫자로 옮긴다.</li>
     </ul>
   </div>
 </section>
@@ -700,7 +796,7 @@ tmux attach -t hil</code></pre>
     <div class="cmd-head"><span>shell 창 — 프로젝트 설치 (15~30분)</span><button type="button" class="copy">복사</button></div>
 <pre><code>bash scripts/server22/02_setup_project.sh 2&gt;&amp;1 | tee outputs/setup.log</code></pre>
   </div>
-  <p>고정 커밋의 lerobot · gym-hil 을 받고 패치를 적용하고, venv 를 만들고, GPU 를 보고 torch 를 고른다. 나와야 하는 것:</p>
+  <p>고정 커밋의 lerobot · gym-hil 을 받고 패치를 적용하고, UR5e 메시(MuJoCo Menagerie 고정 커밋)를 받고, venv 를 만들고, GPU 를 보고 torch 를 고른다. 나와야 하는 것:</p>
   <ul>
     <li><code>[02] GPU compute capability=12.0 -&gt; cu128</code> (5090) · <code>8.0 -&gt; cu126</code> (A100) 처럼 GPU 에 맞는 줄</li>
     <li>마지막 줄 <code>[02] OK torch=2.11.0+cu128 cuda=True mujoco=3.8.1 lerobot=0.6.1</code> (cu126 일 수도 있다). <strong><code>cuda=True</code> 가 핵심</strong></li>
@@ -710,9 +806,10 @@ tmux attach -t hil</code></pre>
   <div class="cmd">
     <div class="cmd-head"><span>shell 창 — 실행 환경 맞추기 · 검증</span><button type="button" class="copy">복사</button></div>
 <pre><code>bash scripts/preflight.sh --fix          <span class="c"># 마지막 줄 "준비됨 — 학습을 띄워도 된다."</span>
-bash scripts/server22/03_verify.sh gpu   <span class="c"># 마지막 줄 "[03] 모두 통과"</span></code></pre>
+bash scripts/server22/03_verify.sh gpu   <span class="c"># 마지막 줄 "[03] 모두 통과"</span>
+ls third_party/gym-hil/gym_hil/assets/universal_robots_ur5e/assets/*.obj | wc -l   <span class="c"># 20 — UR5e 메시</span></code></pre>
   </div>
-  <p><code>preflight --fix</code> 가 하는 일: 키 입력용 가상 화면 <code>Xvfb :1</code> 을 띄우고(SSH 가 끊겨도 남는다), 컨테이너에 GPU 그래픽 라이브러리가 없으면 드라이버에 맞는 것을 <code>nvidia-gl/</code> 에 받는다(약 340 MB). 그다음 다시 점검한다. 점검 결과에서 볼 줄:</p>
+  <p><code>preflight --fix</code> 가 하는 일: 키 입력용 가상 화면 <code>Xvfb :1</code> 을 띄우고(터미널이 끊겨도 남는다), 컨테이너에 GPU 그래픽 라이브러리가 없으면 드라이버에 맞는 것을 <code>nvidia-gl/</code> 에 받는다(약 340 MB). 그다음 다시 점검한다. 점검 결과에서 볼 줄:</p>
   <div class="cmd">
     <div class="cmd-head"><span>정상일 때 (예시)</span><button type="button" class="copy">복사</button></div>
 <pre><code>== 0. 시스템 패키지 · venv ==
@@ -721,7 +818,7 @@ bash scripts/server22/03_verify.sh gpu   <span class="c"># 마지막 줄 "[03] �
 == 1. GPU 드라이버 / nvidia-gl ==
   [OK]   시스템 그래픽 라이브러리를 쓴다 (nvidia-gl/ 불필요)     <span class="c"># 또는 "버전 일치 (5xx.xx)"</span>
 == 2. EGL 실제 렌더링 ==
-  [OK]   NVIDIA GeForce RTX 5090/PCIe/SSE2 1.2ms                <span class="c"># GPU 이름이 나와야 한다. llvmpipe 면 실패</span>
+  [OK]   NVIDIA L40S/PCIe/SSE2 0.3ms                            <span class="c"># 11-18 L40S 실측. GPU 이름이 나와야 한다. llvmpipe 면 실패</span>
 == 3. X 디스플레이 :1 (VNC 또는 Xvfb) ==
   [OK]   X :1 떠 있음 (Xvfb 등 — 화면은 대시보드로 본다)
 ...
@@ -731,16 +828,20 @@ bash scripts/server22/03_verify.sh gpu   <span class="c"># 마지막 줄 "[03] �
 
 <!-- ============================================================ -->
 <section id="config">
-  <h2><span class="num">07</span>학습 설정 — GPU 에 맞춰 (한 번)</h2>
-  <p>저장소의 본 설정을 베껴 RunPod 용 설정을 만든다. 저장소 파일은 건드리지 않는다.</p>
+  <h2><span class="num">07</span>학습 설정 — RunPod 용 UR5e 설정 만들기 (한 번)</h2>
+  <p>저장소의 UR5e 학습 설정을 베껴 RunPod 용 설정을 만든다. 저장소 파일은 건드리지 않는다. 시연의 정규화 통계도 <a href="#demo">08</a> 에서 이 새 파일에 넣는다.</p>
   <div class="cmd">
-    <div class="cmd-head"><span>shell 창 — 설정 만들기</span><button type="button" class="copy">복사</button></div>
-<pre><code>CFG=configs/train_config_panda_place_gpu.json bash scripts/train.sh new runpod</code></pre>
+    <div class="cmd-head"><span>shell 창 — 설정 만들기 · 확인</span><button type="button" class="copy">복사</button></div>
+<pre><code>CFG=configs/train_config_ur5e_place.json bash scripts/train.sh new runpod
+python3 -c "import json;c=json.load(open('configs/train_config_ur5e_runpod.json'));p=c['policy'];print(c['output_dir'],c['env']['task'],c['dataset']['root'],p['input_features']['observation.state']['shape'],p['online_steps'])"
+<span class="c"># outputs/train/ur5e_runpod UR5ePlaceCubeKeyboard-v0 data/ur5e_place_cube_demo [16] 1000000</span></code></pre>
   </div>
   <ul>
-    <li><code>configs/train_config_panda_runpod.json</code> 이 생기고, 출력 폴더는 <code>outputs/train/panda_runpod</code> 다.</li>
-    <li>앞에 <code>CFG=…place_gpu.json</code> 을 붙이는 것은 이번 한 번뿐이다 — 세션의 <code>CFG</code> 는 아직 없는 새 파일을 가리키므로, 베낄 원본을 직접 알려 준다.</li>
-    <li>actor 가 한 번에 도는 길이(<code>online_steps</code>)는 1,000,000 스텝(약 14시간)으로 잡힌다. 다 돌면 actor 만 스스로 끝나고, 같은 명령으로 다시 띄우면 이어 간다.</li>
+    <li><code>configs/train_config_ur5e_runpod.json</code> 이 생기고, 출력 폴더는 <code>outputs/train/ur5e_runpod</code> 다. 이름 앞의 <code>ur5e_</code> 는 <code>new</code> 가 태스크를 보고 붙인다.</li>
+    <li>앞에 <code>CFG=…ur5e_place.json</code> 을 붙이는 것은 이번 한 번뿐이다 — 세션의 <code>CFG</code> 는 아직 없는 새 파일을 가리키므로, 베낄 원본을 직접 알려 준다.
+        <strong>빼면 기본값인 Panda 설정을 베껴</strong> <code>train_config_panda_runpod.json</code>(상태 차원 18, Panda 시연)이 생긴다 — 그 파일을 지우고 다시 한다.</li>
+    <li>actor 가 한 번에 도는 길이(<code>online_steps</code>)는 1,000,000 스텝(UR5e 약 19시간, <a href="06_ur5e-experiment-runbook.html">06</a>)으로 잡힌다. 다 돌면 actor 만 스스로 끝난다(<a href="#trouble">15</a>).</li>
+    <li>학습을 시작한 뒤에 이 파일을 고치면 actor 만 새 값을 읽어 learner 와 어긋날 수 있다. 바꿀 것은 지금 바꾸고, 시작한 뒤에는 새 이름으로 만든다(<a href="06_ur5e-experiment-runbook.html#make">06 §01</a>).</li>
   </ul>
 
   <h3>GPU 가 48 GB 보다 작으면 — 버퍼 줄이기</h3>
@@ -748,7 +849,7 @@ bash scripts/server22/03_verify.sh gpu   <span class="c"># 마지막 줄 "[03] �
     <div class="cmd-head"><span>shell 창 — 32 GB(RTX 5090) 값. 24 GB 면 숫자를 10000 / 20000 으로</span><button type="button" class="copy">복사</button></div>
 <pre><code>python3 - &lt;&lt;'EOF'
 import json
-f = "configs/train_config_panda_runpod.json"
+f = "configs/train_config_ur5e_runpod.json"
 c = json.load(open(f)); p = c["policy"]
 p["online_buffer_capacity"]  = 20000
 p["offline_buffer_capacity"] = 30000
@@ -757,83 +858,246 @@ print("online", p["online_buffer_capacity"], "offline", p["offline_buffer_capaci
 EOF</code></pre>
   </div>
   <div class="note warn">
-    <span class="tag">오프라인 버퍼는 19,612 이상</span>
-    <p>오프라인 버퍼에는 시연이 통째로 먼저 들어간다. 시연 프레임 수(Panda 19,612)보다 작으면 learner 가 시작하자마자 <code>ValueError</code> 로 멈춘다. 버퍼 크기가 학습에 주는 영향은 <a href="03_scenario-online-offline-data-mixed.html#q14">03 Q14</a> · <a href="03_scenario-online-offline-data-mixed.html#q17">Q17</a>.</p>
+    <span class="tag">오프라인 버퍼는 시연 프레임 수 이상</span>
+    <p>오프라인 버퍼에는 시연이 통째로 먼저 들어간다. 시연 프레임 수보다 작으면 learner 가 시작하자마자 <code>ValueError</code> 로 멈춘다.
+       UR5e 성공 30~40판이면 약 7,000~10,000 프레임이다(기준 서버 29판 = 7,253) — 정확한 수는 <a href="#demo">08</a> 의 <code>check_dataset.py</code> 가 찍는다.
+       버퍼 크기가 학습에 주는 영향은 <a href="03_scenario-online-offline-data-mixed.html#q14">03 Q14</a> · <a href="03_scenario-online-offline-data-mixed.html#q17">Q17</a>.</p>
   </div>
   <div class="cmd">
     <div class="cmd-head"><span>shell 창 — 확인</span><button type="button" class="copy">복사</button></div>
-<pre><code>echo $CFG                     <span class="c"># configs/train_config_panda_runpod.json</span>
-bash scripts/train.sh status  <span class="c"># outputs/train/panda_runpod · "아직 체크포인트가 없다"</span></code></pre>
+<pre><code>echo $CFG                     <span class="c"># configs/train_config_ur5e_runpod.json</span>
+bash scripts/train.sh status  <span class="c"># 로봇 ur5e · outputs/train/ur5e_runpod · "아직 체크포인트가 없다"</span></code></pre>
   </div>
 </section>
 
 <!-- ============================================================ -->
-<section id="smoke">
-  <h2><span class="num">08</span>스모크 테스트 — 처음 한 번 (권장)</h2>
-  <p>작은 설정으로 learner → actor → 체크포인트까지 자동으로 돌려 본다. torch.compile 은 꺼져 있다.</p>
+<section id="demo">
+  <h2><span class="num">08</span>조작 연습 · 시연 녹화 · 병합 — UR5e</h2>
+  <p>
+    UR5e 시연은 저장소에 없다. learner 는 시작할 때 <code>data/ur5e_place_cube_demo</code> 를 읽으므로 <strong>이 절을 끝내야 <a href="#smoke">09</a> · <a href="#train">10</a> 이 된다.</strong>
+    사람이 직접 하는 일은 조작 연습과 녹화뿐이고, 나머지는 명령 한 줄씩이다.
+  </p>
+  <div class="note">
+    <span class="tag">녹화를 건너뛰는 방법 — 기준 서버의 병합본 가져오기</span>
+    <p>기준 서버에 녹화해 둔 UR5e 병합본 <code>data/ur5e_place_cube_demo</code>(29판 · 16 MB)가 있다. 그것을 가져오면 ①~④를 통째로 건너뛴다 —
+       그 시연의 통계가 <code>train_config_ur5e_place.json</code> 에 이미 들어 있어, 07 에서 베낀 설정에 그대로 맞다(<a href="06_ur5e-experiment-runbook.html#data">06 §00</a>).
+       기준 서버에서 <code>tar czf ur5e_demo.tgz data/ur5e_place_cube_demo</code> → 내 PC 로 받기 → JupyterLab 파일 탐색기에서 프로젝트 폴더에 끌어다 놓기(Upload) → shell 창에서 <code>tar xzf ur5e_demo.tgz</code> <span class="st est">추정</span>.</p>
+  </div>
+
+  <h3>① 대시보드 띄우고 열기</h3>
   <div class="cmd">
-    <div class="cmd-head"><span>shell 창</span><button type="button" class="copy">복사</button></div>
-<pre><code>bash scripts/run_smoke_test.sh configs/train_config_place_smoke_gpu.json</code></pre>
+    <div class="cmd-head"><span>dash 칸 — 켜 둔 채로</span><button type="button" class="copy">복사</button></div>
+<pre><code>bash scripts/dashboard.sh --host 0.0.0.0</code></pre>
   </div>
   <ul>
-    <li>순서대로 <code>[smoke] learner Ready</code> → <code>[smoke] actor 시작</code> → … → <code>[smoke] 완료: outputs/train/panda_place_smoke</code> 가 나오면 통과.</li>
+    <li>브라우저에서 <code>https://&lt;POD_ID&gt;-8088.proxy.runpod.net/</code> 을 연다(<a href="#dash-url">03</a>). RunPod Connect 탭의 8088 이 Ready 로 바뀐다.</li>
+    <li>learner 가 없으면 <code>돌고 있는 learner 가 없다. 기본 런을 본다.</code> 가 찍힌다. 그래프는 비어 있어도 <strong>화면과 키 조작은 된다.</strong> 학습을 띄울 때(<a href="#train">10</a>) 다시 띄운다.</li>
+  </ul>
+
+  <h3>② 조작 연습 — 아무것도 저장하지 않는다</h3>
+  <div class="cmd">
+    <div class="cmd-head"><span>actor 칸</span><button type="button" class="copy">복사</button></div>
+<pre><code>CFG=configs/env_config_ur5e_place_teleop.json bash scripts/teleop.sh
+<span class="c"># 끝내기: Ctrl+C</span></code></pre>
+  </div>
+  <ol class="steps">
+    <li>대시보드 맨 위에 시뮬레이터 화면(정면 + 손목 카메라)이 뜬다.</li>
+    <li><strong>화면을 한 번 클릭</strong>(테두리가 초록색)하거나 <strong>"이 창에서 조작하기"</strong>를 누른다 — 그때부터 이 브라우저 창의 키가 로봇으로 간다. 누르고 있는 키는 키 목록에서 파랗게 바뀐다.</li>
+    <li><kbd class="hot">Space</kbd> 를 한 번 눌러 조종권을 가져온다. <strong>이걸 안 누르면 모든 키가 무시된다.</strong></li>
+  </ol>
+  <div class="tw">
+    <table>
+      <thead><tr><th>키</th><th>동작</th><th>메모</th></tr></thead>
+      <tbody>
+        <tr><td class="k"><kbd class="hot">Space</kbd></td><td>조종권 켜기 / 끄기</td><td>맨 먼저. 학습 중에는 개입 시작 / 끝</td></tr>
+        <tr><td class="k"><kbd>↑</kbd> <kbd>↓</kbd></td><td>앞(멀리) / 뒤(가까이)</td><td>한 번 누르면 2.5 cm, 누르고 있으면 계속</td></tr>
+        <tr><td class="k"><kbd>←</kbd> <kbd>→</kbd></td><td>왼쪽 / 오른쪽</td><td></td></tr>
+        <tr><td class="k"><kbd>w</kbd> / <kbd>왼쪽 Ctrl</kbd></td><td>위로 / 아래로</td><td>둘을 동시에 누르지 않는다 — 브라우저에서 <kbd>Ctrl</kbd>+<kbd>W</kbd> 는 탭을 닫는다(페이지가 막지 못한다)</td></tr>
+        <tr><td class="k"><kbd>g</kbd> / <kbd>왼쪽 Shift</kbd></td><td>잡기 / 놓기</td><td>놓아야 성공 판정이 난다</td></tr>
+        <tr><td class="k"><kbd>r</kbd></td><td>이 판 버리고 다시</td><td>녹화 중 망친 판</td></tr>
+        <tr><td class="k"><kbd>Esc</kbd></td><td>실패로 끝내기</td><td>보상 0</td></tr>
+        <tr><td class="k"><kbd>Enter</kbd></td><td><strong>쓰지 않는다</strong></td><td>판정을 무시하고 보상을 1.0 으로 덮어쓴다 — 가짜 성공이 시연에 섞인다</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h4>한 판 순서</h4>
+  <ol class="steps">
+    <li><kbd>Space</kbd> 로 조종권을 가져온다.</li>
+    <li>빨간 블록이 매번 다른 자리에 생긴다. 초록 패드는 항상 정면 고정이다. 방향키로 블록 바로 위까지.</li>
+    <li><kbd>왼쪽 Ctrl</kbd> 로 바닥까지 내린다 — 오른쪽 손목 카메라를 보면 정확하다.</li>
+    <li><kbd>g</kbd> 로 잡는다.</li>
+    <li><kbd>w</kbd> 로 <strong>3 cm 이상 들어올린다.</strong> 안 들면 밀어서 옮긴 것으로 쳐서 성공이 안 난다.</li>
+    <li>방향키로 초록 패드 위로.</li>
+    <li><kbd>왼쪽 Ctrl</kbd> 로 내린다.</li>
+    <li><kbd>왼쪽 Shift</kbd> 로 놓는다 → 조건이 맞으면 그 자리에서 성공으로 끝나고 다음 판이 시작된다.</li>
+  </ol>
+  <ul class="sub">
+    <li>성공 조건: 패드 중심에서 수평 3 cm 이내 · 바닥에 놓임 · 그리퍼 열림 · 한 번은 들어올렸을 것. 한 판은 최대 40초 — 넘기면 실패로 리셋된다. 자세한 것은 <a href="01_place-cube-runbook.html#practice">런북 §03</a>(Panda 로 쓴 절이지만 같다).</li>
+    <li>영상 위 한글이 네모(□)로 깨지면 한글 글꼴이 없는 것이다 → <a href="#trouble">15</a>.</li>
+    <li>화면이 깜빡이거나 멋대로 리셋되면 시뮬레이터가 둘 이상 떠 있다. <strong>시뮬레이터는 한 번에 하나</strong> — teleop · record · actor · 추론이 같은 화면 파일과 같은 키 입력을 쓴다. 확인: <code>pgrep -af "gym_manipulator|eval_policy|lerobot.rl"</code>.</li>
+  </ul>
+
+  <h3>③ 시연 녹화 — 10판씩 네 번</h3>
+  <div class="cmd">
+    <div class="cmd-head"><span>actor 칸 — teleop 을 Ctrl+C 로 끈 뒤</span><button type="button" class="copy">복사</button></div>
+<pre><code>CFG=configs/env_config_ur5e_place_record.json bash scripts/record.sh 01    <span class="c"># → data/ur5e_place_cube_demo_01 (10판)</span>
+CFG=configs/env_config_ur5e_place_record.json bash scripts/record.sh 02
+CFG=configs/env_config_ur5e_place_record.json bash scripts/record.sh 03
+CFG=configs/env_config_ur5e_place_record.json bash scripts/record.sh 04
+CFG=configs/env_config_ur5e_place_record.json bash scripts/record.sh       <span class="c"># 인자 없이 = 지금까지 녹화한 배치 목록</span></code></pre>
+  </div>
+  <ul>
+    <li><strong>목표는 성공 30~40판.</strong> 기준 서버는 29판이었고 조금 모자랐다고 기록돼 있다(<a href="06_ur5e-experiment-runbook.html#data">06 §00</a>). 한 판은 중앙값 약 11초였다.</li>
+    <li>저장될 때마다 <code>[녹화] 1/10 개 저장됨 (성공, 보상 1.0, …)</code> 이 찍힌다. 10판을 채우면 스스로 끝난다. 개수는 뒤에 붙인다: <code>record.sh 05 5</code>.</li>
+    <li>망친 판은 <kbd>r</kbd> 로 버린다(저장 안 되고 같은 번호를 다시). <kbd>Enter</kbd> 는 쓰지 않는다.</li>
+    <li><kbd>Ctrl</kbd>+<kbd>C</kbd> 로 멈춰도 저장된 판은 남는다. <strong>같은 번호로 이어서 녹화할 수 없다</strong>(<code>FileExistsError</code>) — 다음 번호로 새로 시작한다.</li>
+  </ul>
+
+  <h3>④ 병합 · 통계 · 점검 — 다 모은 뒤 한 번</h3>
+  <div class="cmd">
+    <div class="cmd-head"><span>shell 창 (1~2분) — 07 의 설정 파일이 있어야 한다</span><button type="button" class="copy">복사</button></div>
+<pre><code>source scripts/env.sh
+python scripts/merge_demos.py --glob 'data/ur5e_place_cube_demo_*' \
+  --out data/ur5e_place_cube_demo --success-only
+python scripts/update_dataset_stats.py --repo_id local/ur5e_place_cube_demo \
+  --root data/ur5e_place_cube_demo --train_config configs/train_config_ur5e_runpod.json
+python scripts/check_dataset.py --repo_id local/ur5e_place_cube_demo \
+  --root data/ur5e_place_cube_demo --train_config configs/train_config_ur5e_runpod.json</code></pre>
+  </div>
+  <ul>
+    <li><strong>병합</strong>은 성공한 판만 남긴다(<code>성공만 남기기: N 중 성공 M · 실패 K 제외</code>). 실패가 섞이면 정책이 실패를 따라 배운다.</li>
+    <li><strong>통계는 꼭 넣는다.</strong> 07 에서 베낀 설정의 통계는 기준 서버 시연(29판)의 것이라 새 시연과 맞지 않는다. 이 명령은 <code>train_config_ur5e_runpod.json</code> 만 고치고 저장소의 <code>train_config_ur5e_place.json</code> 은 건드리지 않는다.</li>
+    <li><strong>점검 통과 기준:</strong> <code>== STATE (16) vs train_config dataset_stats ==</code> · <code>episodes ending with reward 1.0: N / N</code> · <code>all states inside config min/max: True</code>. 첫 줄 <code>frames:</code> 의 프레임 수가 오프라인 버퍼(07)보다 작아야 한다.</li>
+    <li>스모크 설정(<code>train_config_ur5e_smoke.json</code>)의 통계는 기준 서버 시연 것 그대로 둔다 — 같은 로봇 · 같은 과제라 범위가 비슷하고, 스모크는 배선만 본다 <span class="st est">추정</span>.</li>
+    <li>나중에 더 녹화하면: 다음 번호로 녹화 → 병합에 <code>--force</code> → 통계 다시. 단 <strong>학습을 시작한 뒤에는 반영되지 않는다</strong>(learner 는 처음 시작할 때만 시연을 읽는다) — 새 이름으로 설정을 만든다.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="smoke">
+  <h2><span class="num">09</span>스모크 테스트 — 처음 한 번 (권장)</h2>
+  <p>작은 설정으로 learner → actor → 체크포인트까지 자동으로 돌려 본다. torch.compile 은 꺼져 있다. <a href="#demo">08</a> 의 병합본이 있어야 한다. actor 칸의 시뮬레이터(teleop · record)는 끈 뒤에.</p>
+  <div class="cmd">
+    <div class="cmd-head"><span>shell 창 (5~10분)</span><button type="button" class="copy">복사</button></div>
+<pre><code>bash scripts/run_smoke_test.sh configs/train_config_ur5e_smoke.json
+pgrep -af lerobot.rl            <span class="c"># 끝난 뒤 아무것도 안 나와야 한다</span></code></pre>
+  </div>
+  <ul>
+    <li>순서대로 <code>[smoke] learner Ready</code> → <code>[smoke] actor 시작</code> → … → <code>[smoke] 완료: outputs/train/ur5e_smoke</code> 가 나오면 통과.</li>
     <li>실패하면 로그: <code>outputs/learner_smoke_stdout.log</code> · <code>outputs/actor_smoke_stdout.log</code> 의 마지막 부분.</li>
-    <li>다시 돌리려면 먼저 <code>rm -rf outputs/train/panda_place_smoke outputs/train/panda_place_smoke_actor</code>.</li>
+    <li>다시 돌리려면 먼저 <code>rm -rf outputs/train/ur5e_smoke outputs/train/ur5e_smoke_actor</code>.</li>
+    <li>끝난 뒤 learner 가 남아 있으면 끈다(<code>pkill -INT -f lerobot.rl.learner</code>). 기준 서버에서 UR5e 스모크 learner 가 혼자 41시간을 돌아 체크포인트 1,608개 · 디스크 62 GB 를 쓴 적이 있다(<a href="06_ur5e-experiment-runbook.html#stop">06 §05</a>).</li>
   </ul>
 </section>
 
 <!-- ============================================================ -->
 <section id="train">
-  <h2><span class="num">09</span>학습 띄우기 — 지금 서버에서 하던 그대로</h2>
+  <h2><span class="num">10</span>학습 띄우기 — learner → 대시보드 → actor</h2>
   <ol class="steps">
-    <li><strong>learner 창</strong>(<kbd>Ctrl</kbd>+<kbd>b</kbd> <kbd>2</kbd>) — <code>bash scripts/train.sh learner</code><br>
-        <span class="sub">처음에는 비전 인코더(resnet10) 내려받기와 torch.compile 첫 컴파일로 몇 분 걸린다. <strong><code>[LEARNER] gRPC server started</code></strong> 가 보이면 준비된 것이다.</span></li>
-    <li><strong>actor 창</strong>(<kbd>Ctrl</kbd>+<kbd>b</kbd> <kbd>3</kbd>) — <code>bash scripts/train.sh actor</code><br>
-        <span class="sub">learner 가 준비된 뒤에 띄운다. 설정이 learner 와 다르면 경고하고 멈춘다.</span></li>
-    <li><strong>dash 창</strong>(<kbd>Ctrl</kbd>+<kbd>b</kbd> <kbd>1</kbd>) — <code>bash scripts/dashboard.sh</code><br>
-        <span class="sub">learner 를 띄운 <em>뒤에</em> 켜야 <code>돌고 있는 learner 를 따라간다 … outputs/train/panda_runpod</code> 가 나온다. 먼저 켜면 엉뚱한 기본 런을 본다.</span></li>
-    <li><strong>내 PC 브라우저</strong> — <code>http://localhost:8088/</code><br>
-        <span class="sub">SSH 를 <code>-L 8088:localhost:8088</code> 을 붙여 열어 둔 동안만 보인다. 화면 · 개입 조작 · 성공률 그래프가 여기 있다. 조작 키와 개입 요령은 <a href="01_place-cube-runbook.html#keys">런북 §02</a>, 학습 중 할 일은 <a href="01_place-cube-runbook.html#train">런북 §07</a>.</span></li>
+    <li><strong>learner 칸</strong> — <code>bash scripts/train.sh learner</code><br>
+        <span class="sub"><code>[train] 설정: configs/train_config_ur5e_runpod.json   출력: outputs/train/ur5e_runpod</code> 인지 본다. <code>panda</code> 가 보이면 이 칸의 <code>CFG</code> 가 틀린 것이다 — <kbd>Ctrl</kbd>+<kbd>C</kbd> 하고 <a href="#tmux">05</a> 의 <code>export</code> 부터.
+        처음에는 비전 인코더(resnet10) 내려받기와 torch.compile 첫 컴파일로 몇 분 걸린다. <strong><code>[LEARNER] gRPC server started</code></strong> 가 보이면 준비된 것이다.</span></li>
+    <li><strong>dash 칸</strong> — 대시보드를 이 learner 에 다시 붙인다<br>
+        <code>pkill -9 -f progress_dashboard; sleep 1; bash scripts/dashboard.sh --host 0.0.0.0</code><br>
+        <span class="sub"><code>런   : outputs/train/ur5e_runpod</code> 가 나와야 한다. 대시보드는 띄울 때 한 번만 런을 정하므로, learner 보다 먼저 떠 있던 대시보드는 엉뚱한 런의 그래프를 보여 준다.</span></li>
+    <li><strong>actor 칸</strong> — <code>bash scripts/train.sh actor</code><br>
+        <span class="sub"><code>=== 새 실험 === 0판부터 시작한다</code>. 첫 줄에 <code>MUJOCO_GL=egl DISPLAY=:1</code> 이어야 한다(<code>glfw</code> 면 렌더가 40배 느려진다 — 멈춘다).
+        설정이 learner 와 다르면 경고하고 멈춘다. actor 가 온라인 전이 100개(약 5초)를 보내면 학습이 시작되고, 첫 체크포인트는 약 10분 뒤다.</span></li>
+    <li><strong>브라우저</strong> — <code>https://&lt;POD_ID&gt;-8088.proxy.runpod.net/</code><br>
+        <span class="sub">화면 클릭(초록 테두리) → 개입은 <kbd>Space</kbd>. 화면 · 개입 조작 · 성공률 그래프가 여기 있다.</span></li>
     <li><strong>shell 창</strong> — 진행 확인<br>
         <span class="sub"><code>bash scripts/train.sh status</code> (학습 스텝 · 성공률 · 체크포인트), <code>nvidia-smi</code> (GPU 메모리).</span></li>
   </ol>
+
+  <h3>개입 — UR5e 실측에서 나온 요령</h3>
+  <ul>
+    <li><kbd>Space</kbd> 로 조종권을 잡으면 빨간 테두리와 <code>● 개입 중 (REC)</code> 가 뜨고, 다시 <kbd>Space</kbd> 로 정책에 돌려준다. <kbd>Esc</kbd> 는 이 판을 실패로 넘긴다. 조작 키는 <a href="#demo">08</a> 과 같다.</li>
+    <li><strong>정책 혼자 성공하는 판이 나오기 전에는 개입을 끊지 않는다.</strong> 처음에는 무작위 정책이라 헤맨다. 개입 없이 기다리면 수백 판이 0% 로 간다.</li>
+    <li>판을 통째로 대신 하기보다 <strong>막히는 지점에서만 짧게</strong> 잡아 주고 놓는다.</li>
+    <li>혼자 성공률이 50% 를 넘어 유지되면 개입을 멈춘다. 그 뒤로는 정책이 스스로 나아진다. 근거: <a href="03_scenario-online-offline-data-mixed.html#q6">03 Q6</a> · <a href="06_ur5e-experiment-runbook.html#start">06 §03</a>.</li>
+    <li>학습 중 화면에는 내 조작이 섞여 있어 정책 실력이 아니다. 실력은 <a href="#eval">11</a> 의 추론으로 본다.</li>
+  </ul>
+
+  <h3>진행 중</h3>
+  <div class="cmd">
+    <div class="cmd-head"><span>shell 창 — 한 줄씩 골라 친다</span><button type="button" class="copy">복사</button></div>
+<pre><code>bash scripts/train.sh status     <span class="c"># 어디까지 왔나: 학습 스텝 · 판 수 · 성공률 · 체크포인트</span>
+bash scripts/train.sh pause      <span class="c"># 시뮬레이터만 멈춤 (learner 는 계속 학습 — 30분 안쪽으로)</span>
+bash scripts/train.sh resume     <span class="c"># 다시 움직임</span>
+bash scripts/train.sh save       <span class="c"># 지금 체크포인트를 하나 남긴다</span></code></pre>
+  </div>
+  <ul class="sub">
+    <li>대시보드에서 볼 것: 성공률은 오르고 개입률은 내려간다(성공률만 높고 개입률도 높으면 사람이 대신 한 것). 온라인 버퍼는 0 → 40,000 으로 약 45분에 찬다. critic loss 는 요동쳐도 정상이고, 계속 커지기만 하면 발산이다.</li>
+    <li><code>stop</code> · <code>save</code> · <code>pause</code> 는 learner 가 도는 칸이 아니라 shell 창에서 친다. 그 칸의 <code>CFG</code> 가 learner 와 같아야 한다(<code>echo $CFG</code>).</li>
+  </ul>
   <div class="note">
     <span class="tag">첫 pod 라면 적어 둘 것</span>
-    <p>learner 10분 뒤 <code>nvidia-smi</code> 의 메모리, learner 창의 스텝 속도, 대시보드에서 느낀 조작 지연. <a href="04_reproduction-handbook.html#first">04 핸드북 §12</a> 의 실측 대기 칸을 채운다.</p>
+    <p>learner 10분 뒤 <code>nvidia-smi</code> 의 메모리, learner 칸의 스텝 속도, 대시보드에서 느낀 조작 지연. <a href="04_reproduction-handbook.html#first">04 핸드북 §12</a> 의 실측 대기 칸을 채운다.</p>
   </div>
-  <p class="sub">조작 연습(<code>teleop.sh</code>)과 시연 녹화(<code>record.sh</code>)도 같은 방식이다 — X <code>:1</code> 과 대시보드가 떠 있으면 되고, 화면 클릭 뒤 키가 먹는다.
-    절차는 <a href="01_place-cube-runbook.html#practice">런북 §03</a> · <a href="01_place-cube-runbook.html#record">§04</a>. 다만 hil 세션 안에서는 <code>CFG=configs/env_config_panda_place_teleop.json</code>(녹화는 <code>…_record.json</code>)을 앞에 붙인다(<a href="#tmux">05</a>).
-    L40S · 24.04 pod 에서 <code>teleop.sh</code> 가 EGL 로 떠 화면 파일을 계속 갱신하는 것까지 확인했다(11-18).</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="eval">
+  <h2><span class="num">11</span>추론 — 체크포인트로 개입 없이 돌려 보기</h2>
+  <p>
+    UR5e 는 참고 정책이 없다 — 내 런이 2,000 스텝을 넘겨 체크포인트가 생긴 뒤부터 된다.
+    추론도 학습 actor 와 같은 화면 파일을 쓰므로, <strong>학습 중이면 shell 창에서 <code>bash scripts/train.sh pause</code> 를 먼저</strong> 하고 끝나면 <code>resume</code>.
+    개입 래퍼가 없는 환경(<code>UR5ePlaceCube-v0</code>)이라 <kbd>Space</kbd> 를 눌러도 끼어들 수 없다 — 순수한 정책 실력이다.
+  </p>
+  <div class="cmd">
+    <div class="cmd-head"><span>actor 칸 (학습 중이면 shell 창) — 마지막 체크포인트로 20판</span><button type="button" class="copy">복사</button></div>
+<pre><code>source scripts/env.sh
+MUJOCO_GL=egl python scripts/eval_policy.py \
+  --checkpoint outputs/train/ur5e_runpod/checkpoints/last/pretrained_model \
+  --task UR5ePlaceCube-v0 --n_episodes 20</code></pre>
+  </div>
+  <div class="cmd">
+    <div class="cmd-head"><span>같은 곳 — 체크포인트를 오래된 것부터 재생 (실력이 느는 모습)</span><button type="button" class="copy">복사</button></div>
+<pre><code>RUN=outputs/train/ur5e_runpod TASK=UR5ePlaceCube-v0 EVERY=10000 bash scripts/replay_checkpoints.sh 3</code></pre>
+  </div>
+  <ul class="sub">
+    <li>화면은 대시보드 영상 칸에 나온다. 재생은 끝에 체크포인트별 성공 수(예: <code>스텝 020000 : 성공 2/3</code>) 요약을 찍는다.</li>
+    <li><code>RUN=</code> · <code>TASK=</code> 는 꼭 붙인다. 기본값이 Panda 런 · Panda 환경이라 빼면 "체크포인트가 없다" 로 멈추거나 UR5e 정책을 Panda 로봇에 올리다 실패한다.</li>
+    <li>이 두 명령을 UR5e 로 돌려 본 기록은 아직 없다 <span class="st wait">실측 대기</span> — 처음에는 <code>--n_episodes 2</code> 로 짧게.</li>
+    <li>Panda 는 학습 없이도 저장소의 참고 정책으로 바로 된다: <code>--checkpoint outputs/releases/03_exp_b_assist_step242000/pretrained_model --task PandaPlaceCube-v0</code>.</li>
+  </ul>
 </section>
 
 <!-- ============================================================ -->
 <section id="reconnect">
-  <h2><span class="num">10</span>SSH 가 끊겼을 때 · 내 PC 를 껐다 켰을 때</h2>
-  <p>pod 에서는 계속 돌고 있다. 다시 접속해서 붙기만 하면 된다.</p>
+  <h2><span class="num">12</span>브라우저 · SSH 가 끊겼을 때 · 내 PC 를 껐다 켰을 때</h2>
+  <p>pod 에서는 계속 돌고 있다. 다시 열고 붙기만 하면 된다.</p>
   <div class="cmd">
-    <div class="cmd-head"><span>내 PC → pod</span><button type="button" class="copy">복사</button></div>
-<pre><code>ssh -L 8088:localhost:8088 root@&lt;POD_IP&gt; -p &lt;SSH_PORT&gt; -i ~/.ssh/id_ed25519
-tmux attach -t hil</code></pre>
+    <div class="cmd-head"><span>JupyterLab 터미널 (또는 SSH 접속 뒤)</span><button type="button" class="copy">복사</button></div>
+<pre><code>tmux attach -t hil</code></pre>
   </div>
-  <p><code>no sessions</code> · <code>no server running</code> · <code>can't find session</code> 가 나오면 붙을 세션이 없다. pod 가 다시 시작됐거나(tmux 세션은 메모리에만 있다) → <a href="#restart">12</a>, 처음이라 <a href="#tmux">05</a> 의 세션 블록을 아직 안 쳤다 → 그 블록을 친다. <code>attach</code> 는 있는 세션에 붙기만 하고 만들지는 않는다. 세션 이름은 <code>hil</code> 이다.</p>
+  <p>대시보드는 같은 주소(<code>https://&lt;POD_ID&gt;-8088.proxy.runpod.net/</code>)를 다시 열면 된다.</p>
+  <p><code>no sessions</code> · <code>no server running</code> · <code>can't find session</code> 가 나오면 붙을 세션이 없다. pod 가 다시 시작됐거나(tmux 세션은 메모리에만 있다) → <a href="#restart">14</a>, 처음이라 <a href="#tmux">05</a> 의 세션 블록을 아직 안 쳤다 → 그 블록을 친다. <code>attach</code> 는 있는 세션에 붙기만 하고 만들지는 않는다. 세션 이름은 <code>hil</code> 이다.</p>
 </section>
 
 <!-- ============================================================ -->
 <section id="stop">
-  <h2><span class="num">11</span>끝낼 때 · pod 멈추기 (Stop)</h2>
+  <h2><span class="num">13</span>끝낼 때 · pod 멈추기 (Stop)</h2>
   <ol class="steps">
-    <li><strong>shell 창</strong> — <code>bash scripts/train.sh stop</code> · learner 에게 "체크포인트를 남기고 끝내라" 고 알린다.</li>
-    <li><strong>learner 창을 보며 기다린다.</strong> 저장이 끝나고 learner 가 스스로 끝나 프롬프트(<code>root@…#</code>)가 돌아오면 다음으로. 버퍼가 꽉 차 있으면 <strong>5~11분</strong> 걸린다. 이 동안 pod 를 멈추거나 <kbd>Ctrl</kbd>+<kbd>C</kbd> 를 두 번 누르면 버퍼 스냅샷이 깨져 다음 재개가 망가진다(<a href="01_place-cube-runbook.html#stop-learner">런북: 끄는 방법별 차이</a>).</li>
-    <li><strong>actor 창 · dash 창</strong> — 각각 <kbd>Ctrl</kbd>+<kbd>C</kbd>.</li>
-    <li>(필요하면) 결과 내려받기 — <a href="#disk">14</a>.</li>
+    <li><strong>actor 칸</strong> — <kbd>Ctrl</kbd>+<kbd>C</kbd> <strong>한 번</strong>. 10~15초 뒤 <code>[ACTOR] Cleanup complete</code> 와 프롬프트.</li>
+    <li><strong>곧바로 shell 창</strong> — <code>bash scripts/train.sh stop</code> · learner 에게 "체크포인트를 남기고 끝내라" 고 알린다.</li>
+    <li><strong>learner 칸을 보며 기다린다.</strong> <code>Checkpoint policy after step N</code>(저장 시작) → <code>STOP_NOW 요청으로 학습을 끝낸다. 체크포인트는 저장됐다.</code> 와 프롬프트(<code>root@…#</code>)가 돌아오면 다음으로.
+        초반 1~3분, 버퍼가 꽉 차 있으면 <strong>5~11분</strong> 걸린다. 이 동안 pod 를 멈추거나 <kbd>Ctrl</kbd>+<kbd>C</kbd> 를 두 번 누르면 버퍼 스냅샷이 깨져 다음 재개가 망가진다(<a href="06_ur5e-experiment-runbook.html#stop">06 §05</a>).</li>
+    <li><strong>dash 칸</strong> — <kbd>Ctrl</kbd>+<kbd>C</kbd>.</li>
+    <li>(필요하면) 결과 내려받기 — <a href="#disk">16</a>.</li>
     <li><strong>RunPod 화면에서 Stop.</strong></li>
   </ol>
+  <div class="note warn">
+    <span class="tag">learner 와 actor 는 같이 끄고 같이 켠다</span>
+    <p>actor 를 먼저 끄는 것은 learner 가 저장하는 몇 분 동안 actor 가 만든 판이 버려지지 않게 하려는 것이다. 반대로 learner 만 남겨 두면 새 데이터 없이 같은 버퍼로 계속 학습해 정책이 망가지고 체크포인트가 쌓인다.
+       <code>stop</code> 은 learner 와 같은 <code>CFG</code> 의 칸에서 친다 — 다른 칸에서 치면 엉뚱한 폴더에 <code>STOP_NOW</code> 가 남아, 돌던 learner 는 안 멈추고 나중에 그 설정으로 띄운 learner 가 바로 끝난다.</p>
+  </div>
   <div class="tw">
     <table>
       <thead><tr><th>Stop 하면 남는 것</th><th>사라지는 것</th></tr></thead>
       <tbody>
-        <tr><td><code>/workspace/hil-serl_franca_panda_gpu-learner/</code> 전부 — 설정 · venv · 시연 · 체크포인트 · 로그</td>
-            <td>돌던 프로세스 · tmux 세션 · Xvfb · apt 로 깐 패키지 · Python 3.12(22.04 이미지일 때. 24.04 이미지는 이미지에 들어 있어 남는다) · <code>~/.tmux.conf</code> · <code>~/.gitconfig</code></td></tr>
+        <tr><td><code>/workspace/hil-serl_franca_panda_gpu-learner/</code> 전부 — 설정 · venv · 시연(<code>data/</code>) · 체크포인트 · 로그</td>
+            <td>돌던 프로세스 · tmux 세션 · Xvfb · apt 로 깐 패키지(한글 글꼴 포함) · Python 3.12(22.04 이미지일 때. 24.04 이미지는 이미지에 들어 있어 남는다) · <code>~/.tmux.conf</code> · <code>~/.gitconfig</code> · <code>~/.ssh/authorized_keys</code> 에 손으로 더한 키</td></tr>
       </tbody>
     </table>
   </div>
@@ -842,25 +1106,37 @@ tmux attach -t hil</code></pre>
 
 <!-- ============================================================ -->
 <section id="restart">
-  <h2><span class="num">12</span>다시 켤 때 (Start)</h2>
-  <p>RunPod 화면에서 Start 한 뒤, Connect 탭에서 SSH 명령을 <strong>다시 복사한다</strong> — IP · 포트가 바뀌었을 수 있다 <span class="st est">추정</span>.</p>
+  <h2><span class="num">14</span>다시 켤 때 (Start)</h2>
+  <p>RunPod 화면에서 Start 한 뒤 JupyterLab 터미널을 연다(SSH 를 쓰면 Connect 탭에서 명령을 <strong>다시 복사한다</strong> — IP · 포트가 바뀌었을 수 있다 <span class="st est">추정</span>). 대시보드 주소는 같은 pod 라 그대로다.</p>
   <p class="sub">다시 켜는 것은 스냅샷 복원이 아니라 템플릿 이미지로 컨테이너를 새로 만드는 것이다. <strong>Restart 버튼 · Edit Pod 저장 뒤에도 똑같이</strong> 이 절차를 따른다(<code>/workspace</code> 밖이 지워진다). 버튼별 차이는 <a href="04_reproduction-handbook.html#stop">04 핸드북 §09</a>.</p>
   <div class="cmd">
-    <div class="cmd-head"><span>① 접속 · 환경 복구 (1~5분)</span><button type="button" class="copy">복사</button></div>
-<pre><code>ssh -L 8088:localhost:8088 root@&lt;POD_IP&gt; -p &lt;SSH_PORT&gt; -i ~/.ssh/id_ed25519
-cd /workspace/hil-serl_franca_panda_gpu-learner
+    <div class="cmd-head"><span>① 환경 복구 (1~5분)</span><button type="button" class="copy">복사</button></div>
+<pre><code>cd /workspace/hil-serl_franca_panda_gpu-learner
 bash scripts/preflight.sh --fix        <span class="c"># 마지막 줄 "준비됨"</span></code></pre>
   </div>
   <p>
     pod 를 멈추면 apt 로 깐 것이 지워진다. 22.04 이미지면 Python 3.12 도 지워져 venv 가 깨진다(24.04 이미지는 Python 3.12 가 이미지에 있어 venv 는 그대로다).
     <code>preflight --fix</code> 가 이것을 알아보고(<code>[막힘] venv Python 안 돎</code> · <code>시스템 패키지 없음</code>)
-    <code>01_install_system.sh</code> 를 다시 돌린 뒤, Xvfb 를 띄우고, 드라이버가 바뀌었으면 그래픽 라이브러리도 다시 받는다.
+    <code>01_install_system.sh</code> 를 다시 돌린 뒤(한글 글꼴도 여기서 다시 깔린다), Xvfb 를 띄우고, 드라이버가 바뀌었으면 그래픽 라이브러리도 다시 받는다.
   </p>
   <p>② <a href="#tmux">05</a> 의 세션 블록을 그대로 다시 친다.</p>
-  <p>③ learner 창 <code>bash scripts/train.sh learner</code> → <code>체크포인트를 찾았다 -&gt; 이어서 학습한다</code> · <code>Resuming from step …</code> 가 보이면, actor 창 <code>bash scripts/train.sh actor</code> → dash 창 <code>bash scripts/dashboard.sh</code>.</p>
+  <p>③ 이어서 학습 — learner → 대시보드 → actor 순서:</p>
+  <div class="cmd">
+    <div class="cmd-head"><span>칸마다 한 줄 (learner 칸 → dash 칸 → actor 칸)</span><button type="button" class="copy">복사</button></div>
+<pre><code>bash scripts/train.sh learner                                                     <span class="c"># learner 칸. "체크포인트를 찾았다 -&gt; 이어서 학습한다"</span>
+pkill -9 -f progress_dashboard; sleep 1; bash scripts/dashboard.sh --host 0.0.0.0   <span class="c"># dash 칸</span>
+bash scripts/train.sh actor \
+  --policy.path=outputs/train/ur5e_runpod/checkpoints/last/pretrained_model \
+  --policy.online_steps=1000000                                                    <span class="c"># actor 칸. "=== 이어서 하는 실험 ==="</span></code></pre>
+  </div>
+  <ul class="sub">
+    <li>learner 는 체크포인트와 버퍼 스냅샷을 GPU 로 싣느라 약 3분 걸린다. <code>gRPC server started</code> 는 그보다 먼저 찍히지만, 다 실을 때까지 학습은 시작하지 않는다.</li>
+    <li><code>--policy.path</code> 가 없으면 actor 가 무작위 가중치로 떠서 재시작 직후 몇 분간 성적이 무너진다. 이것을 주면 정책 설정을 체크포인트에서 읽으므로 <code>--policy.online_steps</code> 도 같이 줘야 actor 가 일찍 끝나지 않는다(<a href="06_ur5e-experiment-runbook.html#resume">06 §06</a>).</li>
+    <li>actor 만 <code>online_steps</code> 를 다 채우고 끝났고 learner 는 살아 있으면, learner 는 그대로 두고 위 actor 명령만 다시 친다.</li>
+  </ul>
   <div class="note warn">
     <span class="tag">재개할 때 알아 둘 것</span>
-    <p>재개하면 버퍼 일부가 사라지고, 재시작 직후 몇 분간 성공률이 떨어지는 구간이 있다(<a href="03_scenario-online-offline-data-mixed.html#resume">03 §08</a> · <a href="01_place-cube-runbook.html#resume">런북 §08</a>). 고장이 아니다.</p>
+    <p>재개하면 버퍼 일부가 사라진다(<a href="03_scenario-online-offline-data-mixed.html#resume">03 §08</a>). 온라인은 actor 가 다시 채우지만 오프라인(시연 · 개입)은 줄어든 채로 간다. 재시작은 꼭 필요할 때만.</p>
   </div>
   <div class="note bad">
     <span class="tag">다시 켰는데 GPU 가 0 개</span>
@@ -870,60 +1146,75 @@ bash scripts/preflight.sh --fix        <span class="c"># 마지막 줄 "준비�
 
 <!-- ============================================================ -->
 <section id="trouble">
-  <h2><span class="num">13</span>막힐 때</h2>
+  <h2><span class="num">15</span>막힐 때</h2>
   <div class="tw">
     <table>
       <thead><tr><th>보이는 것</th><th>원인</th><th>할 일</th></tr></thead>
       <tbody>
-        <tr><td class="k">ssh: <code>Permission denied (publickey)</code></td><td>pod 를 만들 때 키가 등록되어 있지 않았다 · <code>-i</code> 경로가 다르다</td><td>RunPod Settings 에 키를 넣고 pod 를 새로 만든다(<a href="#prep">01</a>)</td></tr>
-        <tr><td class="k">브라우저 <code>localhost:8088</code> 이 안 열림</td><td>SSH 에 <code>-L</code> 을 안 붙였다 · 기본 SSH(<code>ssh.runpod.io</code>)로 들어왔다 · 대시보드가 안 떠 있다</td><td>exposed TCP 명령에 <code>-L 8088:localhost:8088</code> 을 붙여 다시 접속. dash 창 확인</td></tr>
+        <tr><td class="k">대시보드 주소(<code>…-8088.proxy.runpod.net</code>)가 안 열림 · Connect 탭의 8088 이 계속 Initializing</td><td>대시보드가 안 떠 있거나 <code>--host 0.0.0.0</code> 없이 띄웠다(pod 안 <code>127.0.0.1</code> 에만 열림 — 11-18 실제로 겪음)</td><td>dash 칸에서 <code>pkill -9 -f progress_dashboard; sleep 1; bash scripts/dashboard.sh --host 0.0.0.0</code>. 확인: <code>ss -ltn | grep 8088</code> 이 <code>0.0.0.0:8088</code> 이어야 한다</td></tr>
+        <tr><td class="k">Connect 탭에 8088 이 아예 없다</td><td>Expose HTTP Ports 에 8088 을 넣지 않았다</td><td>Edit Pod 로 8088 추가 — 저장하면 pod 가 다시 시작된다 → <a href="#restart">14</a></td></tr>
+        <tr><td class="k">대시보드 영상 위 한글이 네모(□)로 깨진다</td><td>한글 글꼴이 없어 DejaVu 로 대신 그렸다(RunPod 이미지에는 없다 — 11-18)</td><td><code>apt-get install -y fonts-nanum-coding</code>(최신 <code>01</code> 은 같이 깐다). 그다음 시뮬레이터(teleop · record · actor)를 <strong>다시 띄운다</strong> — 글꼴은 시작할 때 한 번 읽는다</td></tr>
+        <tr><td class="k">ssh 가 <code>root@…'s password:</code> 를 묻는다</td><td>이 PC 의 키가 pod 에 없다(다른 컴퓨터의 키만 등록됨 · PC 에 키 파일이 없음). RunPod 의 root 에는 비밀번호가 없다</td><td><a href="#prep">01</a> 에서 이 PC 의 키를 만들고, pod 안에서 <code>~/.ssh/authorized_keys</code> 에 더한다(<a href="#ssh">03</a>). SSH 없이도 이 문서는 된다</td></tr>
+        <tr><td class="k">ssh: <code>Permission denied (publickey)</code></td><td>pod 를 만들 때 키가 등록되어 있지 않았다 · <code>-i</code> 경로가 다르다</td><td>위와 같다</td></tr>
+        <tr><td class="k">SSH 터널인데 브라우저 <code>localhost:8088</code> 이 안 열림</td><td>SSH 에 <code>-L</code> 을 안 붙였다 · 기본 SSH(<code>ssh.runpod.io</code>)로 들어왔다 · 대시보드가 안 떠 있다 · 내 PC 의 8088 을 다른 프로그램(VS Code 포워딩 등)이 쓰고 있다</td><td>exposed TCP 명령에 <code>-L 18088:localhost:8088</code> 을 붙여 다시 접속하고 <code>http://localhost:18088/</code>. dash 칸 확인. 터널 없이 프록시 주소를 써도 된다</td></tr>
         <tr><td class="k">git clone 이 <code>Username for 'https://github.com':</code> 를 묻는다</td><td>주소가 틀렸다 — 없는 저장소(예: 옛 이름 <code>gguldong2/hil-serl-mujoco-franka</code>)도 GitHub 은 비공개 저장소처럼 로그인을 요구한다. 또는 저장소가 다시 비공개가 됐다</td><td><kbd>Ctrl</kbd>+<kbd>C</kbd> 후 <a href="#install1">04</a> 의 주소로. 확인: <code>GIT_TERMINAL_PROMPT=0 git ls-remote &lt;주소&gt; HEAD</code> 가 해시를 찍으면 주소가 맞고 공개다</td></tr>
         <tr><td class="k">git clone · push: <code>Authentication failed</code></td><td>비밀번호 칸에 GitHub 비밀번호를 넣었다 · 토큰 권한(push 는 Contents: Read and write) · 만료</td><td>토큰을 다시 만든다(<a href="#prep">01</a>)</td></tr>
         <tr><td class="k">01: <code>E: Conflicting values set for option Signed-By regarding source …deadsnakes…</code> · <code>E: The list of sources could not be read.</code></td><td>옛 <code>01</code>(11-18 전)이 이미지에 이미 등록된 deadsnakes 저장소를 다른 키 설정으로 한 번 더 넣었다. 이 뒤로 모든 <code>apt-get</code> 이 실패한다(RunPod Ubuntu 24.04 이미지)</td><td><code>git pull</code> 로 <code>01</code> 을 새로 받아 다시 돌린다 — 중복 등록을 <code>.disabled</code> 로 끄고, 이미 있는 Python 3.12 는 건너뛴다. 손으로 고치려면 <code>mv /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-noble.sources{,.disabled} &amp;&amp; apt-get update</code></td></tr>
         <tr><td class="k">02: <code>cu126 / cu128 둘 다 GPU 계산에 실패했다</code></td><td>드라이버가 너무 낮거나 GPU 가 컨테이너에 안 보인다</td><td><code>nvidia-smi</code> 확인. 5090 이면 CUDA 12.8 필터로 pod 를 다시 만든다</td></tr>
         <tr><td class="k">preflight: <code>venv Python 안 돎</code> · <code>시스템 패키지 없음</code></td><td>pod 가 다시 시작되어 apt 로 깐 것이 지워졌다</td><td><code>bash scripts/preflight.sh --fix</code> (안 되면 <code>bash scripts/server22/01_install_system.sh</code> 를 직접 돌려 오류를 본다)</td></tr>
         <tr><td class="k">preflight: <code>nvidia-gl/ 없음</code> · <code>드라이버 버전 불일치</code></td><td>컨테이너에 GPU 그래픽 라이브러리가 없다 · 드라이버가 바뀌었다</td><td><code>bash scripts/preflight.sh --fix</code></td></tr>
-        <tr><td class="k">preflight: <code>EGL 이 CPU 로 폴백</code> (llvmpipe)</td><td>그래픽 라이브러리가 GPU 를 못 잡는다</td><td><code>--fix</code> 를 한 번 더. 그래도 같으면 pod 환경변수 <code>NVIDIA_DRIVER_CAPABILITIES=all</code> 을 확인(Edit Pod 로 넣으면 pod 가 다시 시작된다 → <a href="#restart">12</a>)</td></tr>
+        <tr><td class="k">preflight: <code>EGL 이 CPU 로 폴백</code> (llvmpipe)</td><td>그래픽 라이브러리가 GPU 를 못 잡는다</td><td><code>--fix</code> 를 한 번 더. 그래도 같으면 pod 환경변수 <code>NVIDIA_DRIVER_CAPABILITIES=all</code> 을 확인(Edit Pod 로 넣으면 pod 가 다시 시작된다 → <a href="#restart">14</a>)</td></tr>
         <tr><td class="k">preflight: <code>X :1 꺼짐</code></td><td>Xvfb 가 안 떠 있다</td><td><code>bash scripts/preflight.sh --fix</code></td></tr>
-        <tr><td class="k"><code>[train] 설정을 읽지 못했다</code></td><td>그 아래 줄이 이유를 말한다: 파일이 없다(<code>CFG</code> 경로) 또는 venv 가 깨졌다</td><td>파일이면 <code>echo $CFG</code> · <code>ls configs/</code>, venv 면 <code>preflight --fix</code></td></tr>
+        <tr><td class="k">teleop · record: <code>CFG 가 학습 설정이다</code></td><td>tmux 세션의 <code>CFG</code>(학습 설정)를 읽었다</td><td>앞에 env 설정을 붙인다: <code>CFG=configs/env_config_ur5e_place_teleop.json bash scripts/teleop.sh</code> (녹화는 <code>…_record.json</code>)</td></tr>
+        <tr><td class="k">키를 눌러도 로봇이 안 움직인다</td><td>대시보드 화면이 조작 상태가 아니다 · 조종권을 안 가져왔다</td><td>화면을 클릭해 초록 테두리를 켠다. 그다음 <kbd>Space</kbd></td></tr>
+        <tr><td class="k"><code>[train] 설정을 읽지 못했다</code></td><td>그 아래 줄이 이유를 말한다: 파일이 없다(<code>CFG</code> 경로 — 07 을 아직 안 했다) 또는 venv 가 깨졌다</td><td>파일이면 <code>echo $CFG</code> · <code>ls configs/</code> → <a href="#config">07</a>, venv 면 <code>preflight --fix</code></td></tr>
+        <tr><td class="k">learner: 시작하자마자 시연을 못 읽고 죽는다</td><td><code>data/ur5e_place_cube_demo</code> 가 없다 — UR5e 시연은 저장소에 없다</td><td><a href="#demo">08</a> 의 녹화 · 병합을 끝낸다. 확인: <code>ls data/ur5e_place_cube_demo/meta/info.json</code></td></tr>
         <tr><td class="k">learner: <code>CUDA out of memory</code></td><td>버퍼가 GPU 메모리보다 크다</td><td><a href="#config">07</a> 의 값으로 줄인다. 체크포인트 없이 죽었으면 <code>bash scripts/train.sh restart</code> 로 출력 폴더를 비우고 다시</td></tr>
-        <tr><td class="k">learner: 시작하자마자 <code>ValueError</code> (버퍼 · capacity)</td><td>오프라인 버퍼가 시연 프레임(19,612)보다 작다</td><td>오프라인 버퍼를 20,000 이상으로</td></tr>
+        <tr><td class="k">learner: 시작하자마자 <code>ValueError</code> (버퍼 · capacity)</td><td>오프라인 버퍼가 시연 프레임 수보다 작다</td><td><code>check_dataset.py</code> 가 찍은 프레임 수보다 크게(<a href="#config">07</a>)</td></tr>
         <tr><td class="k">learner: <code>Failed to find C compiler</code></td><td>gcc 가 없다(pod 재시작 후 <code>01</code> 을 안 돌림)</td><td><code>bash scripts/preflight.sh --fix</code></td></tr>
-        <tr><td class="k">learner: 첫 스텝 근처에서 Triton · inductor 오류</td><td>torch.compile 이 그 GPU · 드라이버에서 실패</td><td><code>sed -i 's/"use_torch_compile": true/"use_torch_compile": false/' configs/train_config_panda_runpod.json</code> 뒤 learner 다시. 느려지지만 학습은 같다</td></tr>
+        <tr><td class="k">learner: 첫 스텝 근처에서 Triton · inductor 오류</td><td>torch.compile 이 그 GPU · 드라이버에서 실패</td><td><code>sed -i 's/"use_torch_compile": true/"use_torch_compile": false/' configs/train_config_ur5e_runpod.json</code> 뒤 learner 다시. 느려지지만 학습은 같다</td></tr>
         <tr><td class="k">learner: <code>그런데 outputs/train/… 이 이미 있다</code></td><td>체크포인트가 생기기 전에 죽은 찌꺼기</td><td><code>bash scripts/train.sh restart</code> (지운다. 묻는다)</td></tr>
-        <tr><td class="k">actor: 설정이 learner 와 다르다며 멈춤</td><td>두 창의 <code>CFG</code> 가 다르다(한쪽을 tmux 밖에서 띄웠다 등)</td><td>두 창에서 <code>echo $CFG</code>. 같은 hil 세션 안에서 띄운다</td></tr>
-        <tr><td class="k">actor 가 몇 시간 뒤 스스로 끝남</td><td><code>online_steps</code>(1,000,000)를 다 돌았다</td><td>actor 창에서 <code>bash scripts/train.sh actor</code> 를 다시 — 이어 간다</td></tr>
-        <tr><td class="k">대시보드: <code>포트 8088 이 이미 쓰이고 있다</code></td><td>이미 떠 있다</td><td>dash 창을 본다. 다시 띄우려면 거기서 <kbd>Ctrl</kbd>+<kbd>C</kbd> 후 다시</td></tr>
-        <tr><td class="k">대시보드가 다른 런을 보여 줌</td><td>learner 보다 먼저 켰다</td><td><kbd>Ctrl</kbd>+<kbd>C</kbd> 후 다시, 또는 <code>bash scripts/dashboard.sh --run outputs/train/panda_runpod</code></td></tr>
-        <tr><td class="k">preflight: <code>디스크 부족</code></td><td>체크포인트가 쌓였다</td><td><a href="#disk">14</a></td></tr>
+        <tr><td class="k">learner 칸에 <code>panda</code> 가 찍힌다</td><td>그 칸의 <code>CFG</code> 가 Panda 다(세션을 Panda 로 만들었다 등)</td><td><kbd>Ctrl</kbd>+<kbd>C</kbd> 후 <code>export CFG=configs/train_config_ur5e_runpod.json</code>(<a href="#tmux">05</a>)</td></tr>
+        <tr><td class="k">actor: 설정이 learner 와 다르다며 멈춤</td><td>두 칸의 <code>CFG</code> 가 다르다(한쪽을 tmux 밖에서 띄웠다 등)</td><td>두 칸에서 <code>echo $CFG</code>. 경고 안의 <code>export CFG=…</code> 를 그대로 친다</td></tr>
+        <tr><td class="k">actor 가 몇 시간 뒤 스스로 끝남</td><td><code>online_steps</code>(1,000,000)를 다 돌았다</td><td>더 돌릴 거면 actor 칸에서 <a href="#restart">14</a> 의 actor 명령(<code>--policy.path</code> 포함)을 다시. 끝낼 거면 바로 <code>train.sh stop</code> — learner 를 혼자 두지 않는다</td></tr>
+        <tr><td class="k"><code>stop</code> 했는데 learner 가 안 멈춘다</td><td>그 칸의 <code>CFG</code> 가 learner 와 다르다 · 아직 학습 전(온라인 100개 전)이다</td><td><code>echo $CFG</code> 를 맞추고 다시. 학습 전이면 learner 칸에서 <kbd>Ctrl</kbd>+<kbd>C</kbd>. 엉뚱한 폴더에 남은 <code>STOP_NOW</code> 는 지운다: <code>ls outputs/train/*/STOP_NOW</code></td></tr>
+        <tr><td class="k">대시보드: <code>포트 8088 이 이미 쓰이고 있다</code></td><td>이미 떠 있다 · <kbd>Ctrl</kbd>+<kbd>Z</kbd> 로 멈춘 대시보드가 포트를 잡고 있다</td><td><code>pkill -9 -f progress_dashboard; sleep 1; bash scripts/dashboard.sh --host 0.0.0.0</code></td></tr>
+        <tr><td class="k">대시보드가 다른 런을 보여 줌</td><td>learner 보다 먼저 켰다</td><td>위 명령으로 다시, 또는 <code>bash scripts/dashboard.sh --host 0.0.0.0 --run outputs/train/ur5e_runpod</code></td></tr>
+        <tr><td class="k">재생: <code>체크포인트가 없다: outputs/train/panda_place_gpu/…</code></td><td><code>RUN=</code> 을 안 붙였다(기본값이 Panda 런)</td><td><a href="#eval">11</a> 의 명령대로 <code>RUN=</code> · <code>TASK=</code> 를 붙인다</td></tr>
+        <tr><td class="k">preflight: <code>디스크 부족</code></td><td>체크포인트가 쌓였다</td><td><a href="#disk">16</a></td></tr>
       </tbody>
     </table>
   </div>
-  <p class="sub">더 찾아볼 곳: 학습 상태 <code>outputs/train/panda_runpod/STATUS.txt</code> · 지표 <code>outputs/train/panda_runpod/logs/</code> · 설치 기록 <code>outputs/setup.log</code> · <code>outputs/server_check.log</code>. 이 서버에서 겪은 문제와 해결은 <a href="01_place-cube-runbook.html#trouble">런북 §10</a>.</p>
+  <p class="sub">더 찾아볼 곳: 학습 상태 <code>outputs/train/ur5e_runpod/STATUS.txt</code> · 지표 <code>outputs/train/ur5e_runpod/logs/</code> · actor 로그 <code>outputs/train/ur5e_runpod_actor/logs/</code> · 설치 기록 <code>outputs/setup.log</code> · <code>outputs/server_check.log</code>. 기준 서버에서 겪은 UR5e 문제는 <a href="06_ur5e-experiment-runbook.html#trouble">06 §09</a>, 일반 문제는 <a href="01_place-cube-runbook.html#trouble">런북 §10</a>.</p>
 </section>
 
 <!-- ============================================================ -->
 <section id="disk">
-  <h2><span class="num">14</span>디스크 정리 · 결과 내려받기 · push · 삭제</h2>
+  <h2><span class="num">16</span>디스크 정리 · 결과 내려받기 · push · 삭제</h2>
   <h3>오래된 체크포인트 지우기</h3>
-  <p>체크포인트는 2,000 스텝마다 81 MB 씩 쌓인다(하루 돌리면 7~20 GB — 이 서버 기록 기준). 최근 것과 <code>last</code> 만 남기고 지운다.</p>
+  <p>체크포인트는 2,000 스텝마다 하나씩 쌓인다 — UR5e 약 40 MB(스모크 실측), 하루 약 5 GB. 최근 것과 <code>last</code> 만 남기고 지운다.</p>
   <div class="cmd">
     <div class="cmd-head"><span>shell 창 — 최근 5개만 남기기</span><button type="button" class="copy">복사</button></div>
-<pre><code>cd outputs/train/panda_runpod/checkpoints
+<pre><code>cd outputs/train/ur5e_runpod/checkpoints
 ls -d [0-9]* | sort -n | head -n -5                  <span class="c"># 지울 목록을 먼저 본다 (last 가 가리키는 최신은 여기 없다)</span>
 ls -d [0-9]* | sort -n | head -n -5 | xargs rm -rf   <span class="c"># 지운다</span>
 cd /workspace/hil-serl_franca_panda_gpu-learner</code></pre>
   </div>
-  <p class="sub">learner 가 저장하는 중(learner 창에 저장 로그가 흐르는 동안)에는 하지 않는다.</p>
+  <p class="sub">learner 가 저장하는 중(learner 칸에 저장 로그가 흐르는 동안)에는 하지 않는다.</p>
 
-  <h3>결과 내려받기 (내 PC 에서)</h3>
+  <h3>결과 내려받기</h3>
   <div class="cmd">
-    <div class="cmd-head"><span>내 PC — 학습된 정책 (마지막 체크포인트)</span><button type="button" class="copy">복사</button></div>
-<pre><code>scp -P &lt;SSH_PORT&gt; -i ~/.ssh/id_ed25519 -r \
-  root@&lt;POD_IP&gt;:/workspace/hil-serl_franca_panda_gpu-learner/outputs/train/panda_runpod/checkpoints/last/pretrained_model \
-  ./panda_runpod_last</code></pre>
+    <div class="cmd-head"><span>shell 창 — 묶은 뒤 JupyterLab 파일 탐색기에서 오른쪽 클릭 → Download</span><button type="button" class="copy">복사</button></div>
+<pre><code>tar czf ur5e_runpod_last.tgz -C outputs/train/ur5e_runpod/checkpoints/last pretrained_model   <span class="c"># 학습된 정책 (Panda 기준 약 23 MB)</span>
+tar czf ur5e_demo.tgz data/ur5e_place_cube_demo                                               <span class="c"># 녹화한 시연 — 다른 곳에서 쓰려면</span></code></pre>
   </div>
-  <p class="sub"><code>scp</code> 는 대문자 <code>-P</code> 로 포트를 받는다. 기본 SSH(<code>ssh.runpod.io</code>)로는 안 된다.</p>
+  <div class="cmd">
+    <div class="cmd-head"><span>또는 내 PC 에서 scp (SSH 를 쓸 때)</span><button type="button" class="copy">복사</button></div>
+<pre><code>scp -P &lt;SSH_PORT&gt; -i ~/.ssh/id_ed25519 -r \
+  root@&lt;POD_IP&gt;:/workspace/hil-serl_franca_panda_gpu-learner/outputs/train/ur5e_runpod/checkpoints/last/pretrained_model \
+  ./ur5e_runpod_last</code></pre>
+  </div>
+  <p class="sub"><code>scp</code> 는 대문자 <code>-P</code> 로 포트를 받는다. 기본 SSH(<code>ssh.runpod.io</code>)로는 안 된다. 녹화한 시연(<code>data/ur5e_place_cube_demo*</code>)은 <code>.gitignore</code> 라 push 로 올라가지 않는다 — 남기려면 이렇게 내려받는다.</p>
 
   <h3 id="push">pod 에서 고친 것을 GitHub 에 올리기 (push)</h3>
   <p>
@@ -948,18 +1239,19 @@ git push                            <span class="c"># Username: gguldong2 · Pas
   </div>
   <ul class="sub">
     <li><code>02</code> 는 <code>docs/requirements-lock.server22.txt</code> 를 이 pod 의 설치 목록으로 덮어쓴다. 기준 서버 기록을 바꿀 뜻이 아니면 add 하지 말고 <code>git restore docs/requirements-lock.server22.txt</code>.</li>
-    <li><code>outputs/</code> · <code>.venv/</code> · <code>third_party/</code> 는 <code>.gitignore</code> 에 있어 올라가지 않는다. <code>configs/train_config_panda_runpod.json</code> 은 올릴지 고른다.</li>
+    <li><code>outputs/</code> · <code>.venv/</code> · <code>third_party/</code> · <code>data/</code>(Panda 시연 빼고)는 <code>.gitignore</code> 에 있어 올라가지 않는다.
+        <code>configs/train_config_ur5e_runpod.json</code> 은 올릴지 고른다 — 통계가 이 pod 에서 녹화한 시연 기준이라, 시연을 함께 옮기지 않는 곳에서는 맞지 않는다.</li>
     <li>토큰을 <code>git config credential.helper store</code> 로 저장하면 <code>~/.git-credentials</code> 에 평문으로 남는다 — 이 문서는 쓰지 않는다.</li>
   </ul>
 
   <h3>완전히 끝낼 때</h3>
-  <p>필요한 것을 내려받은 뒤 RunPod 화면에서 <strong>Terminate</strong>. 볼륨까지 지워지고 요금이 더 나가지 않는다. GitHub 토큰도 지운다.</p>
+  <p>필요한 것(정책 · 시연)을 내려받은 뒤 RunPod 화면에서 <strong>Terminate</strong>. 볼륨까지 지워지고 요금이 더 나가지 않는다. GitHub 토큰도 지운다.</p>
 </section>
 
 <footer>
   <p>
-    RunPod 실행 절차 · hil-serl-mujoco-franka · 2026-11-08 작성 · 2026-11-18 갱신 ·
-    결정과 근거는 <a href="04_reproduction-handbook.html">04 재현 핸드북</a>, 이 서버의 상세 운영은 <a href="01_place-cube-runbook.html">01 런북</a>
+    RunPod 실행 절차 · hil-serl-mujoco-franka · 2026-11-08 작성 · 2026-11-18 갱신(UR5e 기준 · 대시보드를 RunPod 프록시로 · JupyterLab 터미널 · 한글 글꼴 · tmux 칸 나누기) ·
+    결정과 근거는 <a href="04_reproduction-handbook.html">04 재현 핸드북</a>, 기준 서버의 UR5e 운영은 <a href="06_ur5e-experiment-runbook.html">06 UR5e 실험 운영</a>, Panda 운영은 <a href="01_place-cube-runbook.html">01 런북</a>
   </p>
 </footer>
 

@@ -314,6 +314,12 @@
       앞의 <code>ur5e_</code> 는 <code>train.sh new</code> 가 알아서 붙인다.
       이미 있는 <code>train_config_ur5e_place.json</code> 을 그대로 쓰려면 <code>place</code> 를 넣는다 — 출력 폴더가 <code>ur5e_place_01</code> 로 바뀐다(<a href="#as-is">01</a>).</p>
   </div>
+  <div class="note warn">
+    <span class="tag">RunPod 에서는 05 문서를 따른다</span>
+    <p>이 문서는 기준 서버(<code>~/project/hil-serl-mujoco-franka</code>, VS Code 포트 포워딩) 기준이다. RunPod 에서는 다른 점이 셋이다 —
+       ① 이 시연 병합본이 없어 pod 에서 녹화한다(<code>data/</code> 는 <code>.gitignore</code>), ② 대시보드는 <code>bash scripts/dashboard.sh --host 0.0.0.0</code> 으로 띄우고 <code>https://&lt;POD_ID&gt;-8088.proxy.runpod.net/</code> 으로 연다,
+       ③ 폴더는 <code>/workspace/hil-serl_franca_panda_gpu-learner</code>. 절차 전체는 <a href="05_runpod-runbook.html">05 RunPod 실행 절차</a>(UR5e 기준).</p>
+  </div>
 </header>
 
 <!-- ============================================================ -->
@@ -565,7 +571,7 @@ pkill -9 -f progress_dashboard; sleep 1; bash scripts/dashboard.sh</code></pre>
   <div class="out"><b>[대시보드] 돌고 있는 learner 를 따라간다.</b>
            런   : outputs/train/<span class="od">ur5e_place_v1</span></div>
   <p>
-    랩탑 브라우저에서 <code>http://localhost:8088/</code> (VS Code PORTS 탭에서 8088 포워딩). 페이지 제목이
+    랩탑 브라우저에서 <code>http://localhost:8088/</code> (VS Code PORTS 탭에서 8088 포워딩. RunPod 에서는 <code>--host 0.0.0.0</code> 을 붙여 띄우고 <code>https://&lt;POD_ID&gt;-8088.proxy.runpod.net/</code> — <a href="05_runpod-runbook.html#dash-url">05 §03</a>). 페이지 제목이
     <strong>"학습 진행 · <span class="od">ur5e_place_v1</span>"</strong> 이어야 한다. 대시보드는 띄울 때 한 번만 런을 정하므로,
     learner 보다 먼저 떠 있던 대시보드는 엉뚱한 런의 그래프를 보여 준다.
   </p>

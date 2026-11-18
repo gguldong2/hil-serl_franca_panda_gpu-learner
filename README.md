@@ -136,9 +136,14 @@ bash scripts/train.sh actor --window     # MuJoCo 창도 같이 띄우려면
 
 # 칸 C — 대시보드 (브라우저 http://127.0.0.1:8088/)
 bash scripts/dashboard.sh
+#   RunPod 에서는 --host 0.0.0.0 을 붙이고 https://<POD_ID>-8088.proxy.runpod.net/ 으로 연다
 ```
 
-- 설정 파일은 `CFG` 로 바꾼다: `CFG=configs/train_config_place_smoke_gpu.json bash scripts/train.sh learner`
+- 설정 파일은 `CFG` 로 바꾼다 — 기본값은 Panda 설정이다. UR5e 로 돌리려면:
+  `CFG=configs/train_config_ur5e_place.json bash scripts/train.sh learner`
+  (UR5e 시연은 저장소에 없어 먼저 모은다 — 아래 "시연을 새로 모으려면")
+- **RunPod 에서 UR5e 로** 처음부터 끝까지(설치 · 녹화 · 학습 · 추론): [`docs/05_runpod-runbook.html`](docs/05_runpod-runbook.html).
+  기준 서버에서 UR5e 실험 운영: [`docs/06_ur5e-experiment-runbook.html`](docs/06_ur5e-experiment-runbook.html)
 - ⚠️ **`CFG` 로 띄웠다면 `status` · `save` · `stop` 에도 같은 `CFG` 를 붙인다.** 이 셋은 돌고 있는
   learner 를 찾아가지 않고 `CFG` 의 폴더를 보는데, `CFG` 를 빼면 기본값(Panda 설정) 폴더에
   트리거 파일을 놓는다 — 돌던 learner 는 안 멈추고, 남은 `STOP_NOW` 가 **나중에 그 설정으로 띄운
@@ -188,9 +193,9 @@ outputs/train/panda_place_smoke/     outputs/train/ur5e_place_01/
 `train.sh new` 가 설정의 `env.task` 에서 로봇을 뽑아 **자동으로 앞에 붙인다.**
 
 ```bash
-bash scripts/train.sh new place_v2
-#   env.task = PandaPlaceCube...  -> configs/train_config_panda_place_v2.json
+CFG=configs/train_config_ur5e_place.json bash scripts/train.sh new place_v2
 #   env.task = UR5ePlaceCube...   -> configs/train_config_ur5e_place_v2.json
+#   (CFG 를 빼면 기본값 Panda 설정을 베낀다 -> configs/train_config_panda_place_v2.json)
 ```
 
 `train.sh status` 첫 줄에도 로봇과 태스크가 찍힌다.
@@ -209,12 +214,21 @@ bash scripts/train.sh new place_v2
 
 ### 시연을 새로 모으려면
 
-`data/panda_place_cube_demo/` 를 그대로 쓰면 바로 학습할 수 있다. 직접 모으려면:
+Panda 는 `data/panda_place_cube_demo/` 를 그대로 쓰면 바로 학습할 수 있다.
+**UR5e 시연은 저장소에 없다**(`data/` 는 `.gitignore`) — 직접 모은다:
 
 ```bash
-bash scripts/record.sh 01                        # 세션 하나 녹화
-python3 scripts/merge_demos.py --success-only    # 성공판만 모아 병합
+CFG=configs/env_config_ur5e_place_record.json bash scripts/record.sh 01   # -> data/ur5e_place_cube_demo_01 (10판). 02, 03 … 으로 반복
+source scripts/env.sh
+python scripts/merge_demos.py --glob 'data/ur5e_place_cube_demo_*' \
+  --out data/ur5e_place_cube_demo --success-only                          # 성공판만 모아 병합
+python scripts/update_dataset_stats.py --repo_id local/ur5e_place_cube_demo \
+  --root data/ur5e_place_cube_demo --train_config configs/train_config_ur5e_place.json   # 정규화 통계
 ```
+
+Panda 를 새로 모으려면 `CFG` 없이 `bash scripts/record.sh 01`(→ `data/place_demo_01`), 병합은
+`--glob 'data/place_demo_*' --out data/panda_place_cube_demo`. RunPod 에서는 통계를 RunPod 용 설정에만
+넣는다(`docs/05_runpod-runbook.html` §08).
 
 ---
 
@@ -228,14 +242,14 @@ python3 scripts/merge_demos.py --success-only    # 성공판만 모아 병합
 | 1 | `03_verify.sh gpu` | 6단계 모두 통과, `cuda available: True` |
 | 2 | `GL_RENDERER` | `NVIDIA` 포함 (llvmpipe 아님) |
 | 3 | 패치 대조 (`docs/patches/README.md`) | 차이 0건 |
-| 4 | 스모크 | `scripts/run_smoke_test.sh configs/train_config_place_smoke_gpu.json` 가 체크포인트까지 |
+| 4 | 스모크 | `scripts/run_smoke_test.sh configs/train_config_place_smoke_gpu.json` 가 체크포인트까지 (UR5e 는 시연을 모은 뒤 `configs/train_config_ur5e_smoke.json`) |
 | 5 | learner | `[LEARNER] gRPC server started` → `Starting learner thread` |
 | 6 | actor | `[ACTOR] Connection with Learner established`, 첫 줄에 `MUJOCO_GL=egl` |
 | 7 | 연결 | learner 로그에 `[LEARNER] Actor episode: {...}` 가 쌓임 |
 | 8 | 학습 진행 | `Optimization step` 증가, `logs/learner_metrics.jsonl` 에 손실 기록 |
 | 9 | 속도 | 최적화 ~2.7 step/s, actor 20 step/s |
-| 10 | 대시보드 | `http://127.0.0.1:8088/` 에 화면·그래프 |
-| 11 | 개입 | VNC 화면에서 Space → HUD 에 `● 개입 중` |
+| 10 | 대시보드 | `http://127.0.0.1:8088/` 에 화면·그래프 (RunPod: `--host 0.0.0.0` · `https://<POD_ID>-8088.proxy.runpod.net/`) |
+| 11 | 개입 | 대시보드 화면을 클릭한 뒤 Space → HUD 에 `● 개입 중` |
 | 12 | 평가 | `scripts/eval_policy.py --checkpoint outputs/releases/03_exp_b_assist_step242000/pretrained_model` |
 
 12번은 동봉한 **성공한 정책**으로 바로 해볼 수 있다. 학습을 처음부터 돌리지 않고도
@@ -255,6 +269,9 @@ python3 scripts/merge_demos.py --success-only    # 성공판만 모아 병합
 │   ├── train_config_place_smoke_gpu.json    스모크 (3000스텝)
 │   ├── train_config_panda_keyboard_cpu.json GPU 없는 환경용
 │   ├── env_config_panda_place_record.json   시연 녹화
+│   ├── train_config_ur5e_place.json         UR5e 본 학습 (RunPod 은 이것을 베껴 ur5e_runpod 로)
+│   ├── train_config_ur5e_smoke.json         UR5e 스모크
+│   ├── env_config_ur5e_place_teleop.json    UR5e 조작 연습 (…_record.json 은 녹화)
 │   └── keymap.json                          개입 키 배치
 ├── scripts/
 │   ├── env.sh                    venv·HF 캐시·MUJOCO_GL·EGL ICD (모든 스크립트가 source)
@@ -275,8 +292,12 @@ python3 scripts/merge_demos.py --success-only    # 성공판만 모아 병합
 │   ├── ur5e-refactoring-prd.md   UR5e 로 바꿔 돌리기 위한 단계별 계획
 │   ├── server-ubuntu22.04-gpu.md 서버 설치 전체 기록과 문제 해결
 │   ├── patches/README.md         ★ 패치 목록·순서·재현 점검
-│   ├── 01_place-cube-runbook.html 조작 절차 (어떻게 하는가)
+│   ├── 01_place-cube-runbook.html 조작 절차 — Panda (어떻게 하는가)
 │   ├── 02_place-cube-hil-serl-QA.html 학습 원리 13문답 (왜 그런가)
+│   ├── 03_scenario-online-offline-data-mixed.html 버퍼 · 시연 · 개입이 섞이는 방식 문답
+│   ├── 04_reproduction-handbook.html 다른 서버 · RunPod 재현의 결정과 근거
+│   ├── 05_runpod-runbook.html    ★ RunPod 실행 절차 — UR5e 기준 (설치 · 녹화 · 학습 · 추론)
+│   ├── 06_ur5e-experiment-runbook.html UR5e 실험 운영 — 기준 서버
 │   ├── changes.md                상류 대비 변경과 그 이유 전부
 │   ├── troubleshooting.md, verification.md, environment.md
 │   └── requirements-lock.server22.txt  이 서버에서 고정된 패키지 목록
@@ -295,7 +316,9 @@ python3 scripts/merge_demos.py --success-only    # 성공판만 모아 병합
 | 새 서버에 설치하기 | 이 문서 §1 → [`docs/server-ubuntu22.04-gpu.md`](docs/server-ubuntu22.04-gpu.md) |
 | **GPU 를 어떻게 쓰나** | [`docs/gpu.md`](docs/gpu.md) |
 | 상류 코드를 뭘 고쳤나 | [`docs/patches/README.md`](docs/patches/README.md) → [`docs/changes.md`](docs/changes.md) |
-| 실제 조작 절차 | [`docs/01_place-cube-runbook.html`](docs/01_place-cube-runbook.html) |
+| 실제 조작 절차 (Panda) | [`docs/01_place-cube-runbook.html`](docs/01_place-cube-runbook.html) |
+| **RunPod 에서 UR5e 돌리기** | [`docs/05_runpod-runbook.html`](docs/05_runpod-runbook.html) — 결정과 근거는 [`docs/04_reproduction-handbook.html`](docs/04_reproduction-handbook.html) |
+| 기준 서버에서 UR5e 실험 운영 | [`docs/06_ur5e-experiment-runbook.html`](docs/06_ur5e-experiment-runbook.html) |
 | 학습이 왜 그렇게 움직이나 | [`docs/02_place-cube-hil-serl-QA.html`](docs/02_place-cube-hil-serl-QA.html) |
 | 에러가 났다 | [`docs/troubleshooting.md`](docs/troubleshooting.md), `server-ubuntu22.04-gpu.md` §6 |
 | **다른 로봇(UR5e)으로 바꾸려면** | [`docs/ur5e-refactoring-prd.md`](docs/ur5e-refactoring-prd.md) |

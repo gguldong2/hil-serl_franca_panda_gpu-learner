@@ -317,6 +317,7 @@
     <div><dt>스텝 시간</dt><dd>15.7<small> ms (예산 50)</small></dd></div>
     <div><dt>필요한 시연</dt><dd>30<small> 개 (최소 20)</small></dd></div>
   </dl>
+  <p class="sub">이 런북은 Panda · 기준 서버 기준이다. UR5e 는 <a href="06_ur5e-experiment-runbook.html">06 UR5e 실험 운영</a>, RunPod 은 <a href="05_runpod-runbook.html">05 RunPod 실행 절차</a>(UR5e 기준)를 본다. 키 배치 · 성공 조건은 두 로봇이 같다.</p>
 </header>
 
 <!-- ============================================================ -->
@@ -1280,15 +1281,16 @@ bash scripts/train.sh actor              <span class="c"># --window 를 붙이�
   <h3>다른 이름으로 새 학습 시작</h3>
   <div class="cmd">
     <div class="cmd-head"><span>기존 학습을 남겨 둔 채로</span><button type="button" class="copy">복사</button></div>
-<pre><code>bash scripts/train.sh new place_v2
+<pre><code>bash scripts/train.sh new place_v2          <span class="c"># 로봇 이름이 앞에 붙는다 -&gt; configs/train_config_panda_place_v2.json</span>
 
-CFG=configs/train_config_place_v2.json bash scripts/train.sh learner
-CFG=configs/train_config_place_v2.json bash scripts/train.sh actor --window
-CFG=configs/train_config_place_v2.json bash scripts/train.sh status</code></pre>
+CFG=configs/train_config_panda_place_v2.json bash scripts/train.sh learner
+CFG=configs/train_config_panda_place_v2.json bash scripts/train.sh actor --window
+CFG=configs/train_config_panda_place_v2.json bash scripts/train.sh status
+<span class="c"># UR5e: CFG=configs/train_config_ur5e_place.json bash scripts/train.sh new place_v2 -&gt; train_config_ur5e_place_v2.json (06 문서)</span></code></pre>
   </div>
   <p class="sub">
     <code>output_dir</code> 과 <code>job_name</code> 만 바꾼 설정을 만든다. 나머지(에피소드 길이·학습률·시연 데이터)는 그대로.
-    기존 <code>outputs/train/panda_place_gpu</code> 는 손대지 않으므로 나중에 둘을 비교할 수 있다.
+    기존 <code>outputs/train/panda_place_gpu</code> 는 손대지 않으므로 나중에 둘을 비교할 수 있다. 새 출력 폴더는 <code>outputs/train/panda_place_v2</code>.
   </p>
 
   <h3>GPU 는 얼마나 쓰나</h3>
@@ -2094,7 +2096,7 @@ done</code></pre>
   <div class="cmd">
     <div class="cmd-head"><span>실험 리포트 — 가장 먼저 볼 것</span><button type="button" class="copy">복사</button></div>
 <pre><code>python scripts/report.py                          <span class="c"># &lt;run&gt;/report.html</span>
-python scripts/report.py --run outputs/train/place_v2</code></pre>
+python scripts/report.py --run outputs/train/panda_place_v2</code></pre>
   </div>
   <p class="sub">
     타일 6개 + 그래프 3개(성공률·개입률 / 버퍼 / 크리틱 손실) + 최근 200판 표.
