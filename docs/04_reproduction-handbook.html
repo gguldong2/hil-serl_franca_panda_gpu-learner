@@ -757,7 +757,7 @@ CFG=configs/train_config_panda_32gb.json bash scripts/train.sh learner</code></p
       <thead><tr><th>항목</th><th>22.04 (jammy)</th><th>24.04 (noble)</th><th>판정</th></tr></thead>
       <tbody>
         <tr><td class="k"><code>01</code> 의 apt 패키지</td><td>전부 있음</td><td><strong><code>libgl1-mesa-glx</code> 가 없다</strong> — 24.04 에서 없어진 이름. 나머지는 같은 이름으로 있음</td><td><span class="st ok">고침 11-06</span> 그 내용물인 <code>libgl1</code> + <code>libglx-mesa0</code> 로 바꿨다. 22.04 에서 <code>libgl1-mesa-glx</code> 는 이 둘에 의존하기만 하는 껍데기라 결과가 같다(이 서버에서 설치 시뮬레이션 확인). 고치기 전에는 24.04 에서 <code>01</code> 이 apt 단계에서 멈췄다</td></tr>
-        <tr><td class="k">Python 3.12</td><td>deadsnakes PPA</td><td>기본 저장소에 3.12.3 (PPA 에는 없지만 PPA 추가 자체는 된다)</td><td><span class="st est">추정</span> 그대로 동작. 같은 명령이 기본 저장소에서 설치한다</td></tr>
+        <tr><td class="k">Python 3.12</td><td>deadsnakes PPA</td><td>기본 저장소에 3.12.3 (deadsnakes 는 noble 용 3.12 를 만들지 않는다). RunPod 24.04 이미지에는 3.12 · venv · dev 가 이미 들어 있고 deadsnakes 도 미리 등록돼 있다</td><td><span class="st ok">고침 11-18</span> "PPA 를 한 번 더 넣어도 된다" 는 추정이 틀렸다 — 미리 등록된 deadsnakes(키링 파일) 위에 <code>add-apt-repository</code> 가 키를 박은 Signed-By 로 같은 저장소를 넣어 apt 전체가 멈췄다. 이제 <code>01</code> 은 3.12 가 있으면 건너뛰고, 기본 저장소에 없을 때만 · 아직 등록되지 않았을 때만 PPA 를 넣고, 예전에 넣은 중복은 끈다</td></tr>
         <tr><td class="k">glibc</td><td>2.35</td><td>2.39</td><td>휠 요구 2.28 이상 — 둘 다 됨</td></tr>
         <tr><td class="k">ffmpeg</td><td>4.4</td><td>6.1</td><td>torchcodec 지원 범위(4~8) 안</td></tr>
         <tr><td class="k">gcc (build-essential)</td><td>11</td><td>13</td><td>Triton 빌드용. 둘 다 됨 <span class="st est">추정</span></td></tr>
@@ -767,8 +767,8 @@ CFG=configs/train_config_panda_32gb.json bash scripts/train.sh learner</code></p
     </table>
   </div>
   <p>
-    <strong>판단: 24.04 써도 된다</strong>(위 수정 뒤). 다만 24.04 에서 <code>01 → 02 → 03</code> 전체를 실제로 돌린 적은 없다
-    <span class="st wait">실측 대기</span>. 고를 수 있으면 기준 서버와 같은 22.04 가 변수가 하나 적다(D7).
+    <strong>판단: 24.04 써도 된다</strong>(위 수정 뒤). 2026-11-18 RunPod 24.04 pod(L40S)에서 <code>00</code> · <code>01</code> 을 통과했다.
+    <code>02 → 03</code> 은 <span class="st wait">실측 대기</span>. 고를 수 있으면 기준 서버와 같은 22.04 가 변수가 하나 적다(D7).
   </p>
 </section>
 
@@ -1106,16 +1106,17 @@ ssh -L 8088:localhost:8088 root@&lt;POD_IP&gt; -p &lt;SSH_PORT&gt; -i ~/.ssh/id_
         <tr><td class="k">T8</td><td>Dockerfile + RunPod 템플릿</td><td>D1</td><td><span class="st est">보류</span> D1 = A 로 정함(11-06)</td></tr>
         <tr><td class="k">T9</td><td>시연 · 참고 체크포인트 공개 배포</td><td>D8</td><td><span class="st todo">할 일</span></td></tr>
         <tr><td class="k">T10</td><td>Panda 가 박혀 있는 옛 스크립트 정리 (<code>run_actor.sh --window</code>, <code>eval_policy.py</code> 기본 태스크 등)</td><td>다른 서버에서 처음 쓰는 사람의 혼동 방지</td><td><span class="st todo">할 일</span></td></tr>
-        <tr><td class="k">T11</td><td>첫 pod 검증(<a href="#first">12</a>) 실행 — <a href="05_runpod-runbook.html">05</a> 의 절차를 그대로 따라가며 틀린 곳을 05 에 고친다</td><td>D2 · 05 문서 검증</td><td><span class="st todo">할 일</span> pod 접속 정보 필요</td></tr>
+        <tr><td class="k">T11</td><td>첫 pod 검증(<a href="#first">12</a>) 실행 — <a href="05_runpod-runbook.html">05</a> 의 절차를 그대로 따라가며 틀린 곳을 05 에 고친다</td><td>D2 · 05 문서 검증</td><td><span class="st todo">진행 중 11-18</span> L40S · 24.04 pod 에서 <code>00</code> · <code>01</code> 까지. 05 에 고친 것: 공개 저장소 · push · Signed-By 충돌</td></tr>
         <tr><td class="k">T12</td><td><code>docs/gpu.md</code> · 서버 문서의 "24 GB → 10,000/10,000" 정정</td><td>Panda 시연으로 learner 가 죽는 표</td><td><span class="st ok">완료 11-06</span></td></tr>
         <tr><td class="k">T13</td><td><code>preflight.sh</code> 에 "VRAM ↔ 설정의 버퍼" 계산 추가</td><td>메모리 부족을 띄우기 전에 알기 (<a href="#checks">05</a>)</td><td><span class="st todo">할 일</span></td></tr>
         <tr><td class="k">T14</td><td>torch.compile 을 켠 짧은 점검 (스모크 변형)</td><td>본 학습에서 처음 터지지 않게 (<a href="#checks">05</a>)</td><td><span class="st todo">할 일</span></td></tr>
         <tr><td class="k">T16</td><td>체크포인트 저장으로 learner 가 멈추는 시간 줄이기 — <code>save_freq</code> 2,000 → 10,000 또는 정기 저장에서 버퍼 스냅샷 빼기(패치)</td><td>버퍼가 꽉 차면 시간의 61% 가 저장(<a href="03_scenario-online-offline-data-mixed.html#q16">03 Q16</a>)</td><td><span class="st dec">결정 대기</span></td></tr>
         <tr><td class="k">T17</td><td><code>preflight.sh</code> 가 "pod 를 다시 켜서 시스템 패키지 · Python 3.12 가 없다" 를 알아보고 <code>01</code> 을 안내</td><td>D1 = A 라 매번 생기는 상황이다. <code>01</code> 을 잊으면 venv 가 이상한 오류로 깨진다</td><td><span class="st ok">완료 11-08</span> 점검 0번 항목 · <code>--fix</code> 가 <code>01</code> 실행. <code>train.sh</code> 도 "설정을 읽지 못했다" 때 이유를 말한다</td></tr>
-        <tr><td class="k">T18</td><td>첫 pod 에서 쓴 RunPod 템플릿 이름 · 이미지 태그 · 드라이버 버전을 §12 에 기록</td><td>이미지를 만들지 않으므로 베이스 OS 를 맞추는 근거</td><td><span class="st todo">할 일</span></td></tr>
+        <tr><td class="k">T18</td><td>첫 pod 에서 쓴 RunPod 템플릿 이름 · 이미지 태그 · 드라이버 버전을 §12 에 기록</td><td>이미지를 만들지 않으므로 베이스 OS 를 맞추는 근거</td><td><span class="st todo">일부 11-18</span> pod 안에서 본 것: L40S 46 GB · 드라이버 595.112.07 · Ubuntu 24.04.5 · CUDA 12.8 베이스 · 이미지의 시스템 torch 2.13.0+cu129 · vCPU 16 · RAM 188 GB. 이미지 태그는 pod 안에서 안 보인다 — RunPod 화면에서 옮겨 적는다</td></tr>
         <tr><td class="k">T19</td><td><code>preflight --fix</code> 가 VNC 없는 서버에서 <code>Xvfb :1</code> 을 띄우게</td><td>전에는 <code>04_start_vnc.sh</code> 만 불러, VNC 를 안 깐 RunPod 에서 X <code>:1</code> 을 못 고쳤다. <code>Xvfb … &amp;</code> 로 손으로 띄우면 SSH 가 끊길 때 같이 죽는다</td><td><span class="st ok">완료 11-08</span> setsid 로 분리 — 띄운 셸이 죽어도 남는 것 확인</td></tr>
         <tr><td class="k">T20</td><td><code>train.sh status</code> 가 체크포인트 없는 새 런에서 <code>NameError: ckpt_inter</code> 로 깨지던 것</td><td>RunPod 에서 처음 치는 <code>status</code> 가 이 경우다</td><td><span class="st ok">완료 11-08</span></td></tr>
-        <tr><td class="k">T15</td><td><code>01</code> 을 24.04 에 맞게 (<code>libgl1-mesa-glx</code> → <code>libgl1</code> + <code>libglx-mesa0</code>) · build-essential 추가</td><td><a href="#os">06</a> · <a href="#compat">04</a> ⑦</td><td><span class="st ok">완료 11-06</span> 24.04 실설치는 실측 대기</td></tr>
+        <tr><td class="k">T15</td><td><code>01</code> 을 24.04 에 맞게 (<code>libgl1-mesa-glx</code> → <code>libgl1</code> + <code>libglx-mesa0</code>) · build-essential 추가</td><td><a href="#os">06</a> · <a href="#compat">04</a> ⑦</td><td><span class="st ok">완료 11-06</span> 24.04 실설치: <code>01</code> 은 11-18 통과(T21), <code>02</code> 이후 실측 대기</td></tr>
+        <tr><td class="k">T21</td><td><code>01</code> 이 RunPod 24.04 이미지에서 deadsnakes 를 두 번 등록해 apt 를 멈추던 것 (<code>Conflicting values set for option Signed-By</code>)</td><td>이 뒤로 모든 <code>apt-get</code> 이 실패하고, pod 를 다시 켤 때 <code>preflight --fix</code> 가 <code>01</code> 을 부를 때마다 되풀이된다</td><td><span class="st ok">완료 11-18</span> 3.12 가 있으면 건너뜀 · 이미 등록됐으면 안 넣음 · 예전 중복은 <code>.disabled</code>. 등록 상태 6가지로 확인</td></tr>
       </tbody>
     </table>
   </div>
@@ -1135,6 +1136,7 @@ ssh -L 8088:localhost:8088 root@&lt;POD_IP&gt; -p &lt;SSH_PORT&gt; -i ~/.ssh/id_
         <tr><td class="k">2026-11-06</td><td>§01 에 "pod 안에서 <code>docker run</code> 을 하지 않는다" 와 층 그림 추가(RunPod 은 Docker-in-Docker 를 막는다). §09 멈추기 전 단계에서 런북의 끄는 방법별 표로 연결.</td></tr>
         <tr><td class="k">2026-11-06</td><td>§01 에 "B 는 어떻게 하나"(템플릿의 Container Image 칸 · 빌드 · 업로드 · 템플릿 · Dockerfile 모양 · 주의점) 추가.</td></tr>
         <tr><td class="k">2026-11-06</td><td><strong>D1 결정: A — 우리 Docker 이미지를 만들지 않는다.</strong> §01 을 결정 기준으로 고치고 B 는 "참고" 로 남겼다. T8 보류, T18 추가(템플릿 이미지 태그 기록). §08 · §09 · §12 의 이미지 관련 문구 정리.</td></tr>
+        <tr><td class="k">2026-11-18</td><td>첫 RunPod pod(L40S · Ubuntu 24.04 이미지)에서 <code>01</code> 이 Python 3.12 단계에서 apt 를 망가뜨렸다 — 이미지에 미리 등록된 deadsnakes 를 다시 넣어 Signed-By 충돌. <code>01</code> 을 고치고(T21) §06 의 24.04 Python 판정을 정정, T15 · T18 갱신. 05 에 공개 저장소(clone 에 토큰 불필요) · pod 에서 push 하는 법 · 막힐 때 두 줄(Username 을 묻는 clone, Signed-By 충돌).</td></tr>
         <tr><td class="k">2026-11-18</td><td>RunPod 의 프로젝트 폴더를 저장소 이름 그대로 <code>/workspace/hil-serl_franca_panda_gpu-learner</code> 로(clone 할 때 폴더 이름을 따로 주지 않는다). 05 · 04 의 RunPod 경로를 모두 바꿨다. 05 §02 에 Secure Cloud / Community Cloud 뜻과 가격 "A / B" 읽는 법.</td></tr>
         <tr><td class="k">2026-11-16</td><td>RunPod 에서 L40S 재고가 없었다. 05 §02 에 "L40S 가 없을 때" 추가 — 고르는 화면에서 막히면 재고 · 필터(클라우드 · 지역 · CUDA 필터 · 네트워크 볼륨), pod 가 생긴 뒤 시작에서 막히면 템플릿 CUDA(<code>unsatisfied condition: cuda&gt;=X.X</code>). VRAM 48 GB · vCPU 16 을 둘 다 채우는 대안 순위: ① A100 SXM 80GB($2.19 / $1.39) ② RTX PRO 6000($2.69 / $1.69) ③ H100 PCIe 80GB($2.89 / $1.99, 그래픽은 칩 일부만 — 렌더 속도 실측 대기). D4 에 반영.</td></tr>
         <tr><td class="k">2026-11-16</td><td>§07 에 "왜 프로젝트 전용 venv 인가"(이 서버도 <code>.venv</code> 사용, RunPod PyTorch 이미지에 torch 2.11 없음, 멈추면 시스템 패키지가 지워짐, 충돌 경로). §03b CPU 행에 저장이 코어 수에 다 비례하지 않는다는 점. D4 에 값 우선이면 A6000. 05 §02 를 "한눈에 — 넣을 값" 표 → RunPod 화면 순서(Secure Cloud · L40S × 1 · Runpod PyTorch CUDA 12.8 · Ubuntu 22.04 · Edit Template 의 디스크 · 포트 · 환경변수 · On-Demand · Connect 확인) → 이유 → GPU 고르는 근거(최소 · 권장 기준, GPU 비교 표)로 다시 짰고, 버퍼를 줄이면 잃는 것(기억 범위 46 → 23 → 11분, 시연 앞 개입 자리 20,388 → 10,388 → 388)을 넣었다.</td></tr>
