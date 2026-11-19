@@ -138,7 +138,15 @@ apply_patches third_party/gym-hil "docs/patches/gym-hil/*.patch"
 # UR5e 메시(Menagerie 고정 커밋). 패치 0006 의 assets/ur5e.xml 이 참조한다.
 bash scripts/server22/fetch_ur5e_assets.sh
 
-pip freeze --exclude-editable > docs/requirements-lock.server22.txt
+# 설치 목록 기록. docs/requirements-lock.server22.txt 는 기준 서버(server22) 기록이다.
+# RunPod 에서는 git 에 안 올라가는 outputs/ 에 쓴다 — pod 가 기준 기록을 덮어써 11-18 · 11-19 두 번 커밋됐다.
+# (SSH 접속에는 RUNPOD_* 환경변수가 없을 수 있어 /workspace 경로로도 알아본다)
+case "${RUNPOD_POD_ID:+runpod}:$ROOT" in
+  runpod:*|*:/workspace/*) LOCK=outputs/requirements-lock.runpod.txt ;;
+  *)                       LOCK=docs/requirements-lock.server22.txt ;;
+esac
+pip freeze --exclude-editable > "$LOCK"
+echo "[02] 설치 목록: $LOCK"
 EXPECT_GPU=0; [ "$FLAVOR" != cpu ] && EXPECT_GPU=1
 EXPECT_GPU=$EXPECT_GPU python - <<'PY'
 import os, sys
