@@ -43,8 +43,10 @@ CFG="${CFG:-configs/env_config_panda_place_record.json}"
 case "$(basename "$CFG")" in
   train_config_*)
     echo "[record] CFG 가 학습 설정이다: $CFG  (tmux 세션 hil 이 잡아 둔 값)"
+    # 안내하는 로봇을 세션의 학습 설정에 맞춘다(RunPod 세션은 ur5e). 전에는 늘 panda 를 안내해 헷갈렸다(11-19).
+    _robot=panda; case "$(basename "$CFG")" in *ur5e*) _robot=ur5e;; esac
     echo "  시연 녹화에는 env_config 를 쓴다. 이렇게 띄운다:"
-    echo "    CFG=configs/env_config_panda_place_record.json bash scripts/record.sh ${1:-01}"
+    echo "    CFG=configs/env_config_${_robot}_place_record.json bash scripts/record.sh ${1:-01}"
     exit 1;;
 esac
 read -r TASK DROOT < <(python -c "import json,sys; c=json.load(open(sys.argv[1])); print(c['env']['task'], c['dataset']['root'])" "$CFG") || exit 1

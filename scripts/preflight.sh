@@ -162,9 +162,20 @@ if [ "$FIX" = 1 ] && [ ${#BLOCK[@]} -gt 0 ]; then
       bash scripts/server22/04_start_vnc.sh || true
     elif command -v Xvfb >/dev/null; then
       # setsid + nohup: 이 셸이나 SSH 가 끊겨도 X 서버가 남는다 (그냥 & 로 띄우면 같이 죽는다)
-      setsid nohup Xvfb :1 -screen 0 1280x800x24 -nolisten tcp >/tmp/xvfb_1.log 2>&1 < /dev/null &
-      sleep 1
-      echo "  Xvfb :1 을 띄웠다 (로그 /tmp/xvfb_1.log). 화면은 대시보드(8088)로 본다."
+      # Xvfb 는 GLX 를 켜면서 EGL 을 연다. RunPod 컨테이너(드라이버 595)에는 NVIDIA 의 GBM 백엔드
+      # (libnvidia-egl-gbm, 15_nvidia_gbm.json)가 들어와 있는데 /dev/dri 가 없어서, EGL 이 NVIDIA 를
+      # 고르면 Xvfb 가 시작하다 SIGSEGV 로 죽는다(2026-11-19). 그래서 Xvfb 프로세스만 Mesa EGL 을 쓴다.
+      # MuJoCo 의 EGL(GPU) 렌더는 다른 프로세스라 영향이 없다 — 이렇게 띄운 뒤 2번 점검이 그대로 GPU 였다.
+      MESA_EGL=/usr/share/glvnd/egl_vendor.d/50_mesa.json
+      ( [ -f "$MESA_EGL" ] && export __EGL_VENDOR_LIBRARY_FILENAMES="$MESA_EGL"
+        setsid nohup Xvfb :1 -screen 0 1280x800x24 -nolisten tcp >/tmp/xvfb_1.log 2>&1 < /dev/null & )
+      for _ in 1 2 3 4 5 6; do x1_up && break; sleep 0.5; done
+      if x1_up; then
+        echo "  Xvfb :1 을 띄웠다 (로그 /tmp/xvfb_1.log). 화면은 대시보드(8088)로 본다."
+      else
+        echo "  !! Xvfb :1 이 바로 죽었다. /tmp/xvfb_1.log 끝부분:"
+        tail -8 /tmp/xvfb_1.log 2>/dev/null | sed 's/^/     /'
+      fi
     else
       echo "  X 서버가 없다 → bash scripts/server22/01_install_system.sh"
     fi
