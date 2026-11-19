@@ -14,10 +14,17 @@
 #     (이 서버는 드라이버가 "CUDA 12.2" 라고 말하는데 12.6 런타임이 정상 동작한다.)
 #   compute capability 10.0 이상 (Blackwell, RTX 50xx / B200) -> cu128
 #     sm_100 / sm_120 은 cu126 휠에 없다.
+#
+# 템플릿 torch 빌려 쓰기 (인자를 생략했을 때만): 시스템 python3.12 에 아래 REUSE_STACKS 의 torch ·
+# torchvision 이 이미 있고 GPU 계산이 되면, venv 를 --system-site-packages 로 만들어 그 torch 를 쓴다.
+# RunPod 은 /workspace 가 네트워크 디스크라 torch 를 venv 에 깔면 설치 ~10분, import 108초가 든다
+# (템플릿 torch 는 로컬 디스크라 import 4초 — 11-19 L40S pod 실측). 조합이 안 맞으면 지금처럼 venv 에 깐다.
+# 빌려 쓴 venv 에는 .venv/hil-template-torch 가 남고, preflight.sh 가 템플릿이 바뀌었는지 본다.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$ROOT"
 FLAVOR=auto
 case "${1:-}" in --cu128) FLAVOR=cu128 ;; --cu126) FLAVOR=cu126 ;; --cpu) FLAVOR=cpu ;; "") ;; *) echo "옵션: --cu126|--cu128|--cpu"; exit 2 ;; esac
+if [ "$FLAVOR" = auto ]; then AUTO=1; else AUTO=0; fi
 if [ "$FLAVOR" = auto ]; then
   if command -v nvidia-smi >/dev/null 2>&1; then
     CC="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d " ")"
@@ -30,7 +37,14 @@ if [ "$FLAVOR" = auto ]; then
 fi
 LEROBOT_TAG=v0.6.1          # 7e241bd630a3719a56157a497ce5d08f244784f1
 GYMHIL_SHA=f89b3e5556798c44ef95083d92b670afa89d110a   # = PyPI gym-hil 0.1.14
-TORCH_VER=2.11.0; TV_VER=0.26.0
+TORCH_VER=2.11.0; TV_VER=0.26.0; TC_VER=0.11   # venv 에 직접 까는 기본 조합. torchcodec 은 torch 와 짝(0.11 ↔ 2.11)
+# 템플릿(시스템 python3.12)의 torch 를 빌려 쓸 수 있는 조합 — 검증한 것만 둔다. torch · torchvision 이 맞으면
+# 빌려 쓰고, torchcodec 은 셋째 값으로 고정한다(템플릿 것이 안 맞으면 venv 에 맞는 것을 깐다).
+#   torch  torchvision  torchcodec
+REUSE_STACKS=(
+  "2.11.0 0.26.0 0.11"   # 기본 조합 그대로 (RunPod 이미지에는 없다 — 11-19 Docker Hub runpod/pytorch 태그)
+  "2.9.1 0.24.1 0.9"     # RunPod PyTorch 2.9.1 템플릿 (runpod/pytorch:*-cu1281-torch291-ubuntu2404)
+)
 echo "[02] root=$ROOT torch flavor=$FLAVOR"
 
 mkdir -p configs scripts docs outputs data cache third_party
@@ -44,23 +58,41 @@ if [ ! -d third_party/gym-hil/.git ]; then
 fi
 echo "  lerobot: $(git -C third_party/lerobot rev-parse HEAD)"; echo "  gym-hil: $(git -C third_party/gym-hil rev-parse HEAD)"
 
-echo "[02] venv"
-if [ ! -x .venv/bin/python ]; then
-  if command -v python3.12 >/dev/null 2>&1; then python3.12 -m venv .venv
-  elif command -v uv >/dev/null 2>&1 || [ -x "$HOME/.local/bin/uv" ]; then export PATH="$HOME/.local/bin:$PATH"; uv venv --python 3.12 --seed .venv
-  else echo "python3.12 도 uv 도 없음. 01_install_system.sh 먼저"; exit 1; fi
-fi
-# shellcheck disable=SC1091
-. .venv/bin/activate
-python --version | grep -q "3.12" || { echo "venv 가 3.12 가 아님"; exit 1; }
-pip install -q --upgrade pip wheel setuptools
-
 install_torch() {   # $1 = cu126 | cu128 | cpu
   echo "[02] torch $TORCH_VER ($1)"
   pip install "torch==$TORCH_VER" "torchvision==$TV_VER" --index-url "https://download.pytorch.org/whl/$1"
 }
-gpu_works() {   # is_available() 만으로는 모자라다. 실제 커널을 돌려 본다.
-  python - <<'PY'
+sys_torch_stack() {   # 시스템 python 의 "torch torchvision torchcodec 위치" (버전의 +cu 꼬리표는 뗀다, 없으면 -)
+  "$SYS_PY" - <<'PY' 2>/dev/null
+import importlib.metadata as md
+v = {}
+for n in ("torch", "torchvision", "torchcodec"):
+    try: v[n] = md.version(n).split("+")[0]
+    except md.PackageNotFoundError: v[n] = "-"
+try: site = str(md.distribution("torch").locate_file("")).rstrip("/")
+except md.PackageNotFoundError: site = "-"
+print(v["torch"], v["torchvision"], v["torchcodec"], site)
+PY
+}
+REUSE=""; SYS_SITE_DIR=""
+pick_reuse() {   # 템플릿 torch 를 빌려 쓸 수 있으면 REUSE="torch tv tc" · SYS_SITE_DIR 를 채운다
+  [ "$AUTO" = 1 ] && [ "$FLAVOR" != cpu ] && [ -n "$SYS_PY" ] || return 0
+  local t tv tc site s
+  read -r t tv tc site < <(sys_torch_stack) || return 0
+  [ "$t" != "-" ] || return 0
+  for s in "${REUSE_STACKS[@]}"; do
+    case "$s" in "$t $tv "*) REUSE="$s" ;; esac
+  done
+  if [ -z "$REUSE" ]; then
+    echo "[02] 템플릿 torch $t · torchvision $tv — 검증한 조합(REUSE_STACKS)이 아니라 쓰지 않는다. venv 에 torch $TORCH_VER 을 깐다."
+    return 0
+  fi
+  echo "[02] 템플릿 torch $t · torchvision $tv · torchcodec $tc ($site) — GPU 계산 확인"
+  if gpu_works "$SYS_PY"; then SYS_SITE_DIR="$site"
+  else REUSE=""; echo "[02] !! 템플릿 torch 로 GPU 계산이 안 된다. venv 에 따로 깐다."; fi
+}
+gpu_works() {   # is_available() 만으로는 모자라다. 실제 커널을 돌려 본다.  $1 = python (기본: venv 의 python)
+  "${1:-python}" - <<'PY'
 import sys
 try:
     import torch
@@ -81,8 +113,41 @@ print(f"  OK  torch={torch.__version__}  cuda={torch.version.cuda}  "
 PY
 }
 
-install_torch "$FLAVOR"
-if [ "$FLAVOR" != cpu ]; then
+echo "[02] venv"
+# 시스템 python3.12. 이 셸에 venv 가 켜져 있어도 그 바탕 python 을 쓴다(그래야 템플릿 torch 를 제대로 본다).
+SYS_PY="$(command -v python3.12 || true)"
+[ -z "$SYS_PY" ] || SYS_PY="$("$SYS_PY" -c 'import sys; print(getattr(sys, "_base_executable", sys.executable))')"
+if [ ! -x .venv/bin/python ]; then
+  pick_reuse
+  if [ -n "$REUSE" ]; then "$SYS_PY" -m venv --system-site-packages .venv
+  elif [ -n "$SYS_PY" ]; then "$SYS_PY" -m venv .venv
+  elif command -v uv >/dev/null 2>&1 || [ -x "$HOME/.local/bin/uv" ]; then export PATH="$HOME/.local/bin:$PATH"; uv venv --python 3.12 --seed .venv
+  else echo "python3.12 도 uv 도 없음. 01_install_system.sh 먼저"; exit 1; fi
+elif grep -qiE '^include-system-site-packages *= *true' .venv/pyvenv.cfg 2>/dev/null \
+     && ! compgen -G ".venv/lib/python3.12/site-packages/torch-*.dist-info" >/dev/null; then
+  # 템플릿 torch 를 빌려 쓰던 venv. pod 를 다른 템플릿으로 만들었을 수 있어 다시 본다.
+  pick_reuse
+  [ -n "$REUSE" ] || [ "$AUTO" = 0 ] || echo "[02] !! 이 venv 는 템플릿 torch 를 빌려 썼는데 지금 템플릿과 맞지 않는다 → venv 에 torch $TORCH_VER 을 깐다."
+fi
+# shellcheck disable=SC1091
+. .venv/bin/activate
+python --version | grep -q "3.12" || { echo "venv 가 3.12 가 아님"; exit 1; }
+if [ -n "$REUSE" ]; then read -r TORCH_VER TV_VER TC_VER <<<"$REUSE"; FLAVOR=template; fi
+# torch 짝을 고정한다 — 이 뒤의 어떤 pip install 도 torch · torchvision · torchcodec 을 다른 버전으로 바꾸지 못한다.
+# torchcodec 은 torch 를 의존성으로 적지 않아서, 고정하지 않으면 pip 가 torch 와 안 맞는 최신(<0.12)을 고른다.
+printf 'torch==%s\ntorchvision==%s\ntorchcodec==%s.*\n' "$TORCH_VER" "$TV_VER" "$TC_VER" > .venv/torch-constraints.txt
+export PIP_CONSTRAINT="$ROOT/.venv/torch-constraints.txt"
+pip install -q --upgrade pip wheel setuptools
+
+if [ -n "$REUSE" ]; then
+  echo "[02] torch: 템플릿 것을 쓴다 — torch $TORCH_VER · torchvision $TV_VER ($SYS_SITE_DIR). 내려받지 않는다."
+  gpu_works || { echo "[02] !! venv 안에서 템플릿 torch 로 GPU 계산이 안 된다."; exit 1; }
+  echo "$TORCH_VER $TV_VER $TC_VER $SYS_SITE_DIR" > .venv/hil-template-torch   # preflight.sh 가 템플릿이 바뀌었는지 본다
+else
+  rm -f .venv/hil-template-torch
+  install_torch "$FLAVOR"
+fi
+if [ "$FLAVOR" != cpu ] && [ "$FLAVOR" != template ]; then
   if ! gpu_works; then
     case "$FLAVOR" in cu126) ALT=cu128 ;; cu128) ALT=cu126 ;; *) ALT="" ;; esac
     if [ -n "$ALT" ]; then
@@ -106,7 +171,31 @@ echo "[02] gym-hil (editable, $GYMHIL_SHA)"
 pip install -e third_party/gym-hil
 echo "[02] lerobot[hilserl] (editable, $LEROBOT_TAG)"
 pip install -e "third_party/lerobot[hilserl]"
-pip check
+if grep -qiE '^include-system-site-packages *= *true' .venv/pyvenv.cfg; then
+  # 템플릿 패키지(Jupyter 등)도 보이는 venv 라, 템플릿 패키지끼리 · 템플릿 패키지와 venv 사이의 충돌도 나온다.
+  # 프로젝트가 쓰는 것(venv 에 깐 것 + torch 짝)만 막고 나머지는 알리기만 한다.
+  python - <<'PY'
+import importlib.metadata as md, re, subprocess, sys, sysconfig
+r = subprocess.run([sys.executable, "-m", "pip", "check"], capture_output=True, text=True)
+if r.returncode == 0:
+    print(r.stdout.strip()); sys.exit(0)
+venv_site = sysconfig.get_paths()["purelib"]
+ours = {"torch", "torchvision", "torchcodec"}
+bad = []
+for line in r.stdout.splitlines():
+    if not line.strip(): continue
+    name = line.split()[0]
+    try: loc = str(md.distribution(name).locate_file(""))
+    except Exception: loc = ""
+    if loc.startswith(venv_site) or re.sub(r"[-_.]+", "-", name).lower() in ours:
+        bad.append(line); print("  !!", line)
+    else:
+        print("  (템플릿 패키지 — 프로젝트와 무관, 넘어간다)", line)
+sys.exit(1 if bad else 0)
+PY
+else
+  pip check
+fi
 
 echo "[02] 호환성 패치 (docs/patches)"
 series_applied() {   # $1=저장소  $2..=패치(절대경로). 고정 커밋에 전부 적용한 결과와 지금 파일이 같은가
@@ -155,6 +244,8 @@ avail = torch.cuda.is_available()
 print(f"[02] OK torch={torch.__version__} cuda={avail} mujoco={mujoco.__version__} lerobot={lerobot.__version__}")
 if avail:
     print("     gpu:", torch.cuda.get_device_name(0))
+import os, importlib.metadata as md
+print(f"     torch 위치: {os.path.dirname(torch.__file__)}  torchcodec={md.version('torchcodec')}")
 # GPU 로 설치했는데 CUDA 가 안 보이면 여기서 멈춘다. 넘어가면 학습이 조용히 CPU 로 돈다.
 if os.environ.get("EXPECT_GPU") == "1" and not avail:
     print("[02] !! GPU 설치인데 torch 가 CUDA 를 못 본다. 위 메시지 확인.")

@@ -49,8 +49,14 @@ step "5) 뷰어 포함 환경 (actor 와 같은 PandaPickCubeKeyboard-v0)"
 if [ -n "${DISPLAY:-}" ]; then
   echo "DISPLAY=$DISPLAY 에 창을 띄움 (VNC 화면에서 'MuJoCo : Scene' 창 확인)"
   MUJOCO_GL=egl python scripts/check_env.py --task PandaPickCubeKeyboard-v0 --steps 20 2>&1 | grep -v -iE "^warning|deprecat|gym.logger|box.py|^  [A-Z]" | tail -6 || FAIL=1
+elif [ -S /tmp/.X11-unix/X1 ]; then
+  # xvfb-run 이 새로 띄우는 Xvfb 는 NVIDIA 컨테이너(RunPod, 드라이버 595)에서 시작하다 죽는다 — preflight.sh 의
+  # Xvfb 주석 참고(11-19). preflight --fix 가 띄워 둔 :1 이 있으면 그것을 쓴다(actor 도 :1 에 붙는다).
+  echo "DISPLAY 없음 → 떠 있는 X :1 에서 실행 (창은 보이지 않지만 actor 경로가 돌아가는지 확인)"
+  DISPLAY=:1 MUJOCO_GL=egl python scripts/check_env.py --task PandaPickCubeKeyboard-v0 --steps 20 2>&1 | grep -v -iE "^warning|deprecat|gym.logger|box.py|^  [A-Z]" | tail -6 || FAIL=1
 else
   echo "DISPLAY 없음 → Xvfb 가상 화면에서 실행 (창은 보이지 않지만 actor 경로가 돌아가는지 확인)"
+  echo "  (RunPod 처럼 여기서 'Can't connect to display' 로 실패하면 bash scripts/preflight.sh --fix 뒤 다시 돌린다)"
   MUJOCO_GL=egl xvfb-run -a -s "-screen 0 1280x800x24" python scripts/check_env.py --task PandaPickCubeKeyboard-v0 --steps 20 2>&1 | grep -v -iE "^warning|deprecat|gym.logger|box.py|^  [A-Z]" | tail -6 || FAIL=1
 fi
 

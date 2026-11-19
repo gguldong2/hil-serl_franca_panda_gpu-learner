@@ -389,7 +389,7 @@
         <tr><td class="k">D4</td><td>쓸 GPU</td><td><strong>48 GB 이상이면 지금 설정 그대로.</strong> 32 GB(5090)·24 GB 급은 버퍼를 줄인 설정으로(<a href="#vram">03</a>). RunPod 에서는 <strong>L40S</strong>(48 GB · 16 vCPU, 11-15 공시 Secure $1.09/h) 추천, 값이 우선이면 <strong>RTX A6000</strong>(48 GB · 9 vCPU, $0.69/h) — 최소 · 권장 기준과 비교 표는 <a href="05_runpod-runbook.html#pod">05 §02</a>. L40S 재고가 없으면 A100 SXM 80GB → RTX PRO 6000 → H100 PCIe(<a href="05_runpod-runbook.html#no-gpu">05 §02 대안 순위</a>)</td><td><span class="st dec">결정 대기</span></td><td>병목이 GPU 연산이 아니라 20 fps 시뮬레이터라 GPU 는 VRAM 과 그래픽 지원만 맞으면 된다(<a href="#compat">04</a>)</td></tr>
         <tr><td class="k">D5</td><td>프로세스 운영</td><td><strong>tmux.</strong> 지금은 <a href="05_runpod-runbook.html#tmux">05 §05</a> 의 세션 블록(main 창을 dash · learner · actor 세 칸으로 나누고 shell 창 따로 · 프로젝트 폴더 · <code>CFG</code> 를 세션에 미리 넣음)을 손으로 친다. 런처 <code>scripts/session.sh</code>(T3)는 필요해지면</td><td><span class="st dec">결정 대기</span> 런처만</td><td>SSH 가 끊겨도 학습이 계속 돈다(<a href="#session">10</a>)</td></tr>
         <tr><td class="k">D6</td><td>화면 접속</td><td><strong>RunPod HTTP 프록시</strong> — pod 에 HTTP 포트 8088 을 열고 <code>bash scripts/dashboard.sh --host 0.0.0.0</code>, 브라우저로 <code>https://&lt;POD_ID&gt;-8088.proxy.runpod.net/</code>. SSH 터널(<code>-L 8088</code>)은 선택</td><td><span class="st ok">결정 11-18</span></td><td>SSH 키 없이 브라우저만으로 된다 — 첫 pod 에서 영상 · 조작이 이 주소로 되는 것을 확인했다. 대가: 대시보드에 인증이 없어 주소를 아는 사람은 화면을 보고 조작 키를 보낼 수 있다. 주소를 공유하지 않고, 접속 토큰(T7)은 할 일로 남긴다(<a href="#access">11</a>)</td></tr>
-        <tr><td class="k">D7</td><td>OS</td><td>고를 수 있으면 <strong>Ubuntu 22.04</strong>. 24.04 만 있으면 그것도 된다</td><td><span class="st dec">결정 대기</span></td><td>기준 서버와 같으면 변수가 하나 준다. 24.04 대응은 11-06 에 고쳤지만 전체 설치를 돌려 보지는 않았다(<a href="#os">06</a>)</td></tr>
+        <tr><td class="k">D7</td><td>OS</td><td>고를 수 있으면 <strong>Ubuntu 22.04</strong>. 24.04 만 있으면 그것도 된다. RunPod 에서 2.9.1 템플릿 torch 를 빌려 쓰려면 24.04(11-19)</td><td><span class="st dec">결정 대기</span></td><td>기준 서버와 같으면 변수가 하나 준다. 24.04 는 11-18 · 11-19 RunPod pod 에서 전체 설치(<code>00</code> ~ <code>03</code>)를 통과했다(<a href="#os">06</a>)</td></tr>
         <tr><td class="k">D8</td><td>시연 · 체크포인트 배포</td><td><strong>Panda 는 해결되어 있다</strong> — 병합 시연 <code>data/panda_place_cube_demo</code>(40 MB)와 참고 정책 <code>outputs/releases/03_exp_b_assist_step242000/pretrained_model</code> 이 저장소에 들어 있어 clone 으로 온다(11-08 확인). <strong>UR5e 는 pod 에서 새로 녹화한다</strong>(<a href="05_runpod-runbook.html#demo">05 §08</a>) — 기준 서버 병합본(29판 · 16 MB)을 손으로 옮겨도 된다</td><td><span class="st ok">결정 11-18</span> UR5e 는 pod 녹화</td><td>다른 계정의 pod 에서는 이 서버의 <code>data/</code> · <code>outputs/</code> 에 접근할 수 없다. UR5e 시연은 <code>.gitignore</code> 에 걸려 있다</td></tr>
         <tr><td class="k">D9</td><td>로봇</td><td><strong>RunPod 에서는 UR5e</strong> — <a href="05_runpod-runbook.html">05</a> 를 UR5e 기준으로 썼다. Panda 는 05 §00 의 이름 대응표로 바꿔 친다</td><td><span class="st ok">결정 11-18</span></td><td>UR5e 는 학습 결과가 아직 없어 RunPod 에서 처음 돌린다. 시연 · 참고 런이 있는 Panda 는 기준 서버에서 결과를 냈다</td></tr>
         <tr><td class="k">D10</td><td>저장소 접근</td><td>공개 저장소 또는 읽기 전용 토큰</td><td><span class="st dec">결정 대기</span></td><td>지금 원격은 <code>github.com/gguldong2/hil-serl_franca_panda_gpu-learner</code>. 다른 서버에서 clone 할 수 있어야 한다</td></tr>
@@ -830,7 +830,7 @@ CFG=configs/train_config_ur5e_32gb.json bash scripts/train.sh learner</code></pr
       </tbody>
     </table>
   </div>
-  <h3 id="venv">왜 프로젝트 전용 venv 인가 — 템플릿의 PyTorch 를 쓰지 않는 이유</h3>
+  <h3 id="venv">왜 프로젝트 전용 venv 인가 — 템플릿의 PyTorch 는 언제 빌려 쓰나</h3>
   <p>
     <code>02</code> 는 프로젝트 폴더 안에 <code>.venv</code>(Python 3.12 + torch 2.11.0 등, 7.5 GB)를 만든다. <strong>지금 서버도 같다</strong> — 시스템 Python 은 3.10 이고 torch 가 없다.
     모든 <code>scripts/*.sh</code> 가 <code>scripts/env.sh</code> 를 불러 이 venv 를 켜므로 평소에는 보이지 않는다(11-16 확인).
@@ -839,16 +839,19 @@ CFG=configs/train_config_ur5e_32gb.json bash scripts/train.sh learner</code></pr
     <table>
       <thead><tr><th>이유</th><th>내용</th></tr></thead>
       <tbody>
-        <tr><td class="k">버전을 고정해야 한다</td><td>lerobot 0.6.1 은 Python ≥ 3.12, torch ≥ 2.7 · &lt; 2.12 를 요구한다. RunPod PyTorch 이미지는 torch 2.6 · 2.7.1 · 2.8 · 2.9 · 2.12 · 2.13 이고 <strong>우리가 검증한 2.11 은 없다</strong>(Docker Hub <code>runpod/pytorch</code> 태그, 11-16 확인). 2.12 이상은 lerobot 이 받지 않고, 2.9 이하는 패치 13개 · torch.compile · 측정값을 확인하지 않은 버전이다</td></tr>
+        <tr><td class="k">버전을 고정해야 한다</td><td>lerobot 0.6.1 은 Python ≥ 3.12, torch ≥ 2.7 · &lt; 2.12 를 요구한다. RunPod PyTorch 이미지는 torch 2.6 · 2.7.1 · 2.8 · 2.9 · 2.12 · 2.13 이고 <strong>우리가 검증한 2.11 은 없다</strong>(Docker Hub <code>runpod/pytorch</code> 태그, 11-16 확인). 2.12 이상은 lerobot 이 받지 않는다. <strong>2.9.1</strong> 은 11-19 L40S pod 에서 <code>03_verify</code> · 스모크(torch.compile 끔 · 켬)를 2.11 과 나란히 통과했다 — 긴 학습의 성공률 곡선은 아직 비교하지 않았다. 2.8 이하는 확인하지 않은 버전이다</td></tr>
         <tr><td class="k">멈춰도 남아야 한다 (RunPod)</td><td>템플릿의 시스템 Python 에 lerobot 등을 깔면 컨테이너 디스크에 들어가 pod 를 멈출 때마다 지워진다 — 매번 <code>02</code> 수준의 재설치. venv 는 <code>/workspace</code> 안이라 남는다</td></tr>
-        <tr><td class="k">섞이지 않아야 한다</td><td>venv 는 기본으로 시스템 패키지를 보지 않는다. 템플릿의 torch · Jupyter 와 서로 건드리지 않는다. 실제로 이 서버에서는 ROS Jazzy 가 <code>PYTHONPATH</code> 로 끼어들어 <code>env.sh</code> 가 그것을 지운다</td></tr>
-        <tr><td class="k">아끼는 시간이 작다</td><td>템플릿의 torch 를 빌려 써도 아끼는 것은 torch 내려받기(약 3 GB, 몇 분)뿐이다. lerobot · gym-hil · 패치 · 나머지 의존성은 그대로 깔아야 한다</td></tr>
+        <tr><td class="k">섞이지 않아야 한다</td><td>venv 는 기본으로 시스템 패키지를 보지 않는다. 템플릿의 torch · Jupyter 와 서로 건드리지 않는다. 실제로 이 서버에서는 ROS Jazzy 가 <code>PYTHONPATH</code> 로 끼어들어 <code>env.sh</code> 가 그것을 지운다. 템플릿 torch 를 빌려 쓰는 venv 만 예외로 시스템 패키지가 보인다 — venv 에 깐 것이 앞서므로 numpy 등은 venv 판이 쓰이고, <code>02</code> 가 torch · torchvision · torchcodec 짝을 제약 파일(<code>.venv/torch-constraints.txt</code>)로 고정하며, <code>pip check</code> 는 프로젝트가 쓰는 패키지의 충돌만 막는다</td></tr>
+        <tr><td class="k">아끼는 시간은 디스크에 달렸다</td><td>로컬 디스크 서버에서는 torch 내려받기(약 3 GB, 몇 분)뿐이다. <strong>RunPod 은 다르다</strong> — <code>/workspace</code> 가 네트워크 디스크(MooseFS)라 venv 의 torch 는 설치에 약 10분, 프로세스가 뜰 때마다 import 에 108초가 든다. 템플릿 torch 는 이미지 안(로컬 디스크)이라 4초다(11-19 L40S 실측). lerobot · gym-hil · 패치 · 나머지 의존성은 어느 쪽이든 venv 에 깐다</td></tr>
       </tbody>
     </table>
   </div>
   <p class="sub">
     남는 충돌 경로는 환경변수뿐이다(<code>PYTHONPATH</code> · <code>LD_LIBRARY_PATH</code>). <code>env.sh</code> 가 앞의 것을 지우고, torch 는 자기 CUDA 라이브러리를 들고 오며,
-    <code>02</code> 가 설치 끝에 실제 GPU 계산을 돌려 보고 안 되면 멈춘다. <code>--system-site-packages</code> 로 템플릿 torch 만 빌리는 절충은 버전이 어긋나서 권하지 않는다.
+    <code>02</code> 가 설치 끝에 실제 GPU 계산을 돌려 보고 안 되면 멈춘다.
+    <strong>템플릿 torch 빌려 쓰기(11-19)</strong> — <code>02</code> 는 인자 없이 돌 때 시스템 python3.12 의 torch · torchvision 이 검증한 조합(<code>REUSE_STACKS</code>: 2.11.0 · 0.26.0, 2.9.1 · 0.24.1)이고 GPU 계산이 되면
+    venv 를 <code>--system-site-packages</code> 로 만들어 그 torch 를 쓴다. 아니면 위처럼 venv 에 2.11.0 을 깐다. 빌려 쓴 venv 에는 <code>.venv/hil-template-torch</code> 가 남고,
+    pod 를 다른 PyTorch 버전 템플릿으로 만들면 <code>preflight</code> 가 "템플릿 torch 가 바뀜" 으로 막는다 — <code>--fix</code> 는 <code>02</code> 를 돌려 venv 에 torch 2.11.0 을 따로 깐다.
   </p>
 
   <p class="sub">

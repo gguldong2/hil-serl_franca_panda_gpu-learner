@@ -49,6 +49,19 @@ elif ! .venv/bin/python -c '' 2>/dev/null; then
 else
   ok "venv Python $(.venv/bin/python -c 'import sys;print(sys.version.split()[0])')"
 fi
+# 02 가 템플릿(시스템 python)의 torch 를 빌려 쓰게 만든 venv 면, 그 torch 가 아직 있는지 본다.
+# pod 를 다른 PyTorch 버전 템플릿으로 다시 만들면 바뀐다. 파일 목록만 보므로 --quick 에서도 빠르다.
+NEED_TORCH_FIX=0
+if [ -f .venv/hil-template-torch ]; then
+  read -r _t _tv _tc _site < .venv/hil-template-torch
+  if compgen -G "$_site/torch-$_t*.dist-info" >/dev/null && compgen -G "$_site/torchvision-$_tv*.dist-info" >/dev/null; then
+    ok "torch $_t · torchvision $_tv — 템플릿 것을 쓴다"
+  else
+    _now="$(ls -d "$_site"/torch-*.dist-info 2>/dev/null | sed 's|.*/torch-||; s|\.dist-info$||' | head -1)"
+    bad "템플릿 torch 가 바뀜" "venv 는 템플릿의 torch $_t 를 빌려 쓰는데 지금 템플릿에는 ${_now:-torch 가 없다} → pod 를 PyTorch $_t 템플릿으로 다시 만들거나, bash scripts/preflight.sh --fix (venv 에 torch 를 따로 깐다 — 02, 15~30분)"
+    NEED_TORCH_FIX=1
+  fi
+fi
 MISS=()
 command -v gcc     >/dev/null || MISS+=(gcc)       # torch.compile(Triton) 이 첫 실행 때 쓴다
 command -v xdotool >/dev/null || MISS+=(xdotool)   # 대시보드의 브라우저 조작
@@ -156,6 +169,8 @@ check
 if [ "$FIX" = 1 ] && [ ${#BLOCK[@]} -gt 0 ]; then
   echo; echo "== 고치기 =================================================================="
   if [ "${NEED_SYS_FIX:-0}" = 1 ]; then bash scripts/server22/01_install_system.sh || true; fi
+  # 템플릿 torch 가 바뀌었으면 02 가 알아보고 venv 에 torch 를 따로 깐다(오래 걸린다)
+  if [ "${NEED_TORCH_FIX:-0}" = 1 ]; then bash scripts/server22/02_setup_project.sh || true; fi
   if [ "${NEED_GL_FIX:-0}" = 1 ]; then bash scripts/server22/05_nvidia_gl.sh --force || true; fi
   if ! x1_up; then
     if command -v vncserver >/dev/null; then

@@ -450,8 +450,8 @@ cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 
         <tr><td class="k">GPU · 개수</td><td><strong>L40S × 1</strong> — 없으면 <a href="#no-gpu">대안 순위</a>(A100 SXM 80GB → RTX PRO 6000 → H100 PCIe). 값이 우선이면 RTX A6000 × 1</td><td>48 GB 면 학습 설정을 안 바꾼다. 근거는 <a href="#gpu-choice">아래</a></td></tr>
         <tr><td class="k">Template</td><td><strong>Runpod PyTorch</strong></td><td>SSH · JupyterLab 이 미리 들어 있다</td></tr>
         <tr><td class="k">└ CUDA</td><td><strong>12.8</strong> (태그의 <code>cu1281</code>)</td><td>드라이버 570 이상 서버 — 우리 torch(cu126 · cu128) 둘 다 된다. 서버 고를 폭이 가장 넓다</td></tr>
-        <tr><td class="k">└ Ubuntu</td><td><strong>22.04</strong> (태그의 <code>ubuntu2204</code>) · 없으면 24.04</td><td>지금 서버와 같은 OS. 24.04 도 된다(11-18 첫 pod 가 24.04)</td></tr>
-        <tr><td class="k">└ PyTorch 버전</td><td><strong>상관없다</strong> — 기본값 그대로</td><td>템플릿의 torch 는 안 쓴다. <code>02</code> 가 venv 에 2.11.0 을 따로 깐다(<a href="04_reproduction-handbook.html#venv">이유</a>)</td></tr>
+        <tr><td class="k">└ Ubuntu</td><td><strong>24.04</strong> (태그의 <code>ubuntu2404</code>)</td><td>아래 2.9.1 이미지가 Python 3.12 를 기본으로 쓰는 것을 확인한 쪽(11-19, 이미지 빌드 기록). 11-18 · 11-19 pod 모두 24.04 로 설치 · <code>preflight</code> 를 통과했다</td></tr>
+        <tr><td class="k">└ PyTorch 버전</td><td><strong>2.9.1</strong> (태그 <code>…-cu1281-torch291-ubuntu2404</code>)</td><td><code>02</code> 가 이 템플릿의 torch 2.9.1 · torchvision 0.24.1 · torchcodec 0.9.1 을 빌려 쓴다 — 설치에서 torch(약 10분)가 빠지고, 학습 · 조작 프로세스가 뜰 때 torch import 가 108초 → 4초(11-19 L40S 실측). 다른 버전이면 지금처럼 venv 에 2.11.0 을 깐다(<a href="04_reproduction-handbook.html#venv">이유</a>). <strong>pod 를 다시 만들 때도 같은 버전</strong> — 바뀌면 <code>preflight</code> 가 막는다</td></tr>
         <tr><td class="k">Container Disk</td><td><strong>30 GB</strong></td><td>apt 패키지 · pip 캐시. 멈추면 지워지는 디스크</td></tr>
         <tr><td class="k">Volume Disk · Mount Path</td><td><strong>100 GB</strong> · <code>/workspace</code></td><td>프로젝트 · venv · 시연 · 체크포인트. 멈춰도 남는다</td></tr>
         <tr><td class="k">Expose HTTP Ports</td><td><code>8888</code> · <strong><code>8088</code></strong></td><td>8888 은 JupyterLab, 8088 은 대시보드(화면 · 키 조작 · 그래프). RunPod 이 <code>https://&lt;POD_ID&gt;-포트.proxy.runpod.net</code> 으로 열어 준다(<a href="#dash-url">03</a>). 대시보드에는 로그인이 없다 — 주소를 남에게 주지 않는다</td></tr>
@@ -479,7 +479,7 @@ cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 
     <li><strong>Pods → + Deploy.</strong> 맨 위에서 <strong>Secure Cloud</strong> 를 고른다.</li>
     <li><strong>GPU 를 고른다</strong> — 목록에서 <strong>L40S</strong>(또는 RTX A6000), GPU Count <strong>1</strong>. 회색이거나 고를 수 없으면 <a href="#no-gpu">"L40S 가 없을 때"</a> 순서로.
         RTX 5090 · RTX PRO 6000 같은 Blackwell 이면 Additional filters → CUDA Version 을 12.8 이상으로(템플릿을 CUDA 12.8 로 고르면 저절로 맞는다).</li>
-    <li><strong>템플릿</strong> — Change Template → 공식 <strong>Runpod PyTorch</strong>. 버전을 고르는 칸이 있으면 <strong>CUDA 12.8 · Ubuntu 22.04</strong>, PyTorch 는 기본값.
+    <li><strong>템플릿</strong> — Change Template → 공식 <strong>Runpod PyTorch</strong>. 버전을 고르는 칸이 있으면 <strong>CUDA 12.8 · Ubuntu 24.04 · PyTorch 2.9.1</strong>(이유는 위 표).
         이미지 이름이 <code>runpod/pytorch:…-cu1281-torch…-ubuntu2204</code> 꼴이면 맞다. <strong>이 이미지 이름을 적어 둔다</strong>(<a href="04_reproduction-handbook.html#todo">04 T18</a>).
         이름이 "Ubuntu" 뿐인 템플릿은 JupyterLab 이 없을 수 있어 고르지 않는다.</li>
     <li><strong>Edit Template</strong>(이 pod 에만 적용)을 눌러:
@@ -499,11 +499,17 @@ cat ~/.ssh/id_ed25519.pub                              <span class="c"># 나온 
 
   <h3>템플릿 · CUDA 를 이렇게 고르는 이유</h3>
   <ul>
-    <li><strong>템플릿의 PyTorch · CUDA 는 쓰지 않는다.</strong> <code>02</code> 가 <code>/workspace</code> 의 프로젝트 venv 에 CUDA 런타임이 든 torch 2.11.0 을 따로 깐다.
-        RunPod PyTorch 이미지에는 2.11 이 없고, 시스템에 깐 것은 pod 를 멈추면 지워진다(<a href="04_reproduction-handbook.html#venv">04 §07</a>).</li>
+    <li><strong>PyTorch 2.9.1 템플릿이면 그 torch 를 빌려 쓴다.</strong> <code>/workspace</code> 는 네트워크 디스크(MooseFS)라 torch 를 venv 에 깔면 파일 수만 개를 네트워크로 쓰고(설치 약 10분),
+        프로세스가 뜰 때마다 그것을 다시 읽는다(torch import 108초). 템플릿의 torch 는 이미지 안(로컬 디스크)이라 4초이고, pod 를 다시 켜도 이미지와 함께 돌아온다.
+        <code>02</code> 는 템플릿의 torch · torchvision 이 검증한 조합(2.9.1 · 0.24.1)일 때만 venv 를 <code>--system-site-packages</code> 로 만들고, 아니면 지금처럼 venv 에 2.11.0 을 깐다.
+        RunPod 이미지에는 2.11 이 없다(11-19 Docker Hub — 2.6 · 2.7.1 · 2.8 · 2.9 · 2.9.1 · 2.12 · 2.13). 2.12 이상은 lerobot 0.6.1 이 받지 않는다(<a href="04_reproduction-handbook.html#venv">04 §07</a>).</li>
+    <li><strong>2.9.1 검증 범위</strong> — 11-19 L40S pod 에서 2.9.1 템플릿과 같은 구성으로 <code>02</code> → <code>03_verify</code> → 스모크(<code>place_smoke_gpu</code>, torch.compile 끔 · 켬)를 2.11 과 나란히 돌려
+        모두 통과, learner 속도도 같은 범위(2.9.1 6.6 Hz · 2.11 6.2 Hz)였다. <strong>긴 학습의 성공률 곡선이 2.11 과 같은 범위인지는 아직 확인하지 않았다</strong> <span class="st wait">실측 대기</span>.
+        2.11 로 맞춰야 하는 비교 실험이면 다른 버전 템플릿을 고른다 — <code>02</code> 가 venv 에 2.11.0 을 깐다.</li>
     <li><strong>템플릿의 CUDA 버전은 "그 버전을 지원하는 드라이버의 서버에만 뜬다" 는 조건으로만 작용한다.</strong> 12.8 이면 드라이버 570 이상 → cu126 · cu128 둘 다 된다.
         12.9 · 13.x 도 되지만 고를 수 있는 서버가 좁아질 뿐 얻는 것이 없다 <span class="st est">추정</span>.</li>
-    <li><strong>Ubuntu 22.04</strong> 는 기준 서버와 같다. 24.04 도 된다 — 2026-11-18 첫 pod(L40S)가 24.04 이미지였고 설치(<code>00</code> ~ <code>03</code>) · <code>preflight</code> 를 통과했다.
+    <li><strong>Ubuntu 24.04</strong> — 2.9.1 템플릿 torch 를 빌려 쓰려면 이쪽이다(그 이미지가 Python 3.12 를 기본으로 쓰는 것을 11-19 에 빌드 기록으로 확인). 22.04 는 기준 서버와 같은 OS 지만 그 2.9.1 이미지의 Python 은 확인하지 않았다 — 골라도 <code>02</code> 가 조건을 보고 안 맞으면 venv 에 깐다.
+        2026-11-18 · 11-19 pod(L40S)가 24.04 이미지였고 설치(<code>00</code> ~ <code>03</code>) · <code>preflight</code> 를 통과했다.
         이 이미지에는 Python 3.12(venv · 헤더까지)가 이미 들어 있고 deadsnakes 저장소도 미리 등록돼 있어, <code>01</code> 은 Python 단계를 건너뛴다(<a href="04_reproduction-handbook.html#os">04 §06</a>).</li>
   </ul>
   <div class="note warn">
@@ -799,7 +805,9 @@ tmux attach -t hil</code></pre>
   <p>고정 커밋의 lerobot · gym-hil 을 받고 패치를 적용하고, UR5e 메시(MuJoCo Menagerie 고정 커밋)를 받고, venv 를 만들고, GPU 를 보고 torch 를 고른다. 나와야 하는 것:</p>
   <ul>
     <li><code>[02] GPU compute capability=12.0 -&gt; cu128</code> (5090) · <code>8.0 -&gt; cu126</code> (A100) 처럼 GPU 에 맞는 줄</li>
-    <li>마지막 줄 <code>[02] OK torch=2.11.0+cu128 cuda=True mujoco=3.8.1 lerobot=0.6.1</code> (cu126 일 수도 있다). <strong><code>cuda=True</code> 가 핵심</strong></li>
+    <li>2.9.1 템플릿이면 <code>[02] torch: 템플릿 것을 쓴다 — torch 2.9.1 · torchvision 0.24.1 (…). 내려받지 않는다.</code> 가 나오고,
+        마지막 줄은 <code>[02] OK torch=2.9.1+cu128 cuda=True …</code> · <code>[02] 완료 (torch flavor=template)</code></li>
+    <li>다른 템플릿이면 마지막 줄 <code>[02] OK torch=2.11.0+cu128 cuda=True mujoco=3.8.1 lerobot=0.6.1</code> (cu126 일 수도 있다). <strong><code>cuda=True</code> 가 핵심</strong></li>
   </ul>
   <p class="sub"><code>cu126 / cu128 둘 다 GPU 계산에 실패했다</code> 로 멈추면 드라이버 문제다 — 그 줄 아래 안내를 보고, 5090 이면 CUDA 12.8 필터로 pod 를 다시 만든다.</p>
 
@@ -1161,6 +1169,7 @@ bash scripts/train.sh actor \
         <tr><td class="k">git clone · push: <code>Authentication failed</code></td><td>비밀번호 칸에 GitHub 비밀번호를 넣었다 · 토큰 권한(push 는 Contents: Read and write) · 만료</td><td>토큰을 다시 만든다(<a href="#prep">01</a>)</td></tr>
         <tr><td class="k">01: <code>E: Conflicting values set for option Signed-By regarding source …deadsnakes…</code> · <code>E: The list of sources could not be read.</code></td><td>옛 <code>01</code>(11-18 전)이 이미지에 이미 등록된 deadsnakes 저장소를 다른 키 설정으로 한 번 더 넣었다. 이 뒤로 모든 <code>apt-get</code> 이 실패한다(RunPod Ubuntu 24.04 이미지)</td><td><code>git pull</code> 로 <code>01</code> 을 새로 받아 다시 돌린다 — 중복 등록을 <code>.disabled</code> 로 끄고, 이미 있는 Python 3.12 는 건너뛴다. 손으로 고치려면 <code>mv /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-noble.sources{,.disabled} &amp;&amp; apt-get update</code></td></tr>
         <tr><td class="k">02: <code>cu126 / cu128 둘 다 GPU 계산에 실패했다</code></td><td>드라이버가 너무 낮거나 GPU 가 컨테이너에 안 보인다</td><td><code>nvidia-smi</code> 확인. 5090 이면 CUDA 12.8 필터로 pod 를 다시 만든다</td></tr>
+        <tr><td class="k">preflight: <code>템플릿 torch 가 바뀜</code> (teleop · actor 가 시작하다 멈춤)</td><td>venv 가 PyTorch 2.9.1 템플릿의 torch 를 빌려 쓰는데, pod 를 다른 PyTorch 버전 템플릿으로 만들었다</td><td>pod 를 PyTorch 2.9.1 템플릿으로 다시 만든다(빠름). 그대로 쓰려면 <code>bash scripts/preflight.sh --fix</code> — <code>02</code> 가 venv 에 torch 2.11 을 따로 깐다(15~30분)</td></tr>
         <tr><td class="k">preflight: <code>venv Python 안 돎</code> · <code>시스템 패키지 없음</code></td><td>pod 가 다시 시작되어 apt 로 깐 것이 지워졌다</td><td><code>bash scripts/preflight.sh --fix</code> (안 되면 <code>bash scripts/server22/01_install_system.sh</code> 를 직접 돌려 오류를 본다)</td></tr>
         <tr><td class="k">preflight: <code>nvidia-gl/ 없음</code> · <code>드라이버 버전 불일치</code></td><td>컨테이너에 GPU 그래픽 라이브러리가 없다 · 드라이버가 바뀌었다</td><td><code>bash scripts/preflight.sh --fix</code></td></tr>
         <tr><td class="k">preflight: <code>EGL 이 CPU 로 폴백</code> (llvmpipe)</td><td>그래픽 라이브러리가 GPU 를 못 잡는다</td><td><code>--fix</code> 를 한 번 더. 그래도 같으면 pod 환경변수 <code>NVIDIA_DRIVER_CAPABILITIES=all</code> 을 확인(Edit Pod 로 넣으면 pod 가 다시 시작된다 → <a href="#restart">14</a>)</td></tr>
