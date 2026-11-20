@@ -871,6 +871,16 @@ EOF</code></pre>
        UR5e 성공 30~40판이면 약 7,000~10,000 프레임이다(기준 서버 29판 = 7,253) — 정확한 수는 <a href="#demo">08</a> 의 <code>check_dataset.py</code> 가 찍는다.
        버퍼 크기가 학습에 주는 영향은 <a href="03_scenario-online-offline-data-mixed.html#q14">03 Q14</a> · <a href="03_scenario-online-offline-data-mixed.html#q17">Q17</a>.</p>
   </div>
+  <h4 id="gpu24">24 GB · vCPU 9 안팎의 GPU 로 할 때</h4>
+  <ul>
+    <li><strong>바꿀 것은 버퍼 둘뿐이다.</strong> 위 블록에서 10000 / 20000. CPU 쪽은 바꿀 설정이 없다. 학습 설정은 새 학습을 시작할 때만 적용된다.</li>
+    <li><strong>스모크 설정도 그대로는 안 들어간다</strong>(5,000 / 40,000, 약 24 GiB <span class="st est">추정</span>). 오프라인을 20,000 으로 줄인 사본을 만들어 돌린다:
+      <code>python3 -c "import json;c=json.load(open('configs/train_config_ur5e_smoke.json'));c['policy']['offline_buffer_capacity']=20000;c['output_dir']+='_24gb';c['job_name']+='_24gb';json.dump(c,open('configs/train_config_ur5e_smoke_24gb.json','w'),indent=4)"</code>
+      뒤 <code>scripts/run_smoke_test.sh configs/train_config_ur5e_smoke_24gb.json</code>.</li>
+    <li><strong>UR5e 는 괜찮고 Panda 는 불리하다.</strong> 오프라인 20,000 에 UR5e 시연(약 7,000~10,000)을 넣으면 개입 자리가 1만 개 남짓 남는다. Panda 시연(19,612)이면 388 개뿐이라 개입하자마자 시연이 밀려난다.</li>
+    <li><strong>CPU 가 9개면</strong> 터지는 곳은 없고 느려지는 곳이 셋이다 <span class="st est">추정</span> — ① 체크포인트 저장(CPU 영상 인코딩. 다만 버퍼가 3만 칸으로 작아 지금 서버의 10~11분보다는 짧을 것), ② 저장하는 동안 actor 의 20 fps(물리 · 대시보드도 CPU 라 서로 다툰다 — 개입 감이 무거워질 수 있다), ③ learner 첫 시작(시연 영상 풀기 · torch.compile 첫 컴파일).</li>
+    <li><strong>값을 먼저 비교한다.</strong> RTX A6000(48 GB · 9 vCPU)은 $0.69 / $0.33 으로 L4(24 GB · 12 vCPU, $0.69 / $0.44)와 같거나 싸다. 48 GB 가 잡히면 버퍼를 줄일 이유가 없다.</li>
+  </ul>
   <div class="cmd">
     <div class="cmd-head"><span>shell 창 — 확인</span><button type="button" class="copy">복사</button></div>
 <pre><code>echo $CFG                     <span class="c"># configs/train_config_ur5e_runpod.json</span>
@@ -1252,6 +1262,8 @@ git push                            <span class="c"># Username: gguldong2 · Pas
     <li><code>outputs/</code> · <code>.venv/</code> · <code>third_party/</code> · <code>data/</code>(Panda 시연 빼고)는 <code>.gitignore</code> 에 있어 올라가지 않는다.
         <code>configs/train_config_ur5e_runpod.json</code> 은 올릴지 고른다 — 통계가 이 pod 에서 녹화한 시연 기준이라, 시연을 함께 옮기지 않는 곳에서는 맞지 않는다.</li>
     <li>토큰을 <code>git config credential.helper store</code> 로 저장하면 <code>~/.git-credentials</code> 에 평문으로 남는다 — 이 문서는 쓰지 않는다.</li>
+    <li><strong>받아 온 코드에 패치(<code>docs/patches/</code>)가 늘었으면</strong> <code>bash scripts/server22/02_setup_project.sh</code> 를 한 번 다시 돌린다 — 이미 적용된 것은 건너뛰고 새 패치만 얹는다(2026-11-20 부터).
+        예: <code>gym-hil/0008</code>(UR5e 손목 카메라 몸체). 이 패치는 카메라 화면을 조금 바꾸므로, <strong>그 전에 녹화한 UR5e 시연과 섞지 않는다</strong> — 시연을 아직 안 모았으면 먼저 받아 두고 녹화한다.</li>
   </ul>
 
   <h3>완전히 끝낼 때</h3>

@@ -847,3 +847,17 @@ actor 가 `online_steps` 를 다 채우고 끝나면 `bash scripts/train.sh stop
 2. 같이: 등록을 로봇 목록 반복으로, `factory.py` 의 `if/elif` 를 표 하나로.
 3. 장면 XML 합치기는 include 를 코드에서 바꿔 끼워야 해 손이 더 간다. 한 줄 차이 복사본으로 둬도 위험은 작다.
 4. 시점: 비용이 가장 작은 때는 UR5e 시연 녹화 전. 미루면 Phase 5 와 같이.
+
+### 2026-11-20 — UR5e 손목 카메라 몸체 (gym-hil 패치 `0008`)
+
+front 화면(대시보드)에서 손목 카메라가 보이지 않았다 — 카메라는 `<camera>` 만 있고 몸체가 없었다(Panda 도 같다, 이번엔 UR5e 만).
+
+| 항목 | 내용 |
+| --- | --- |
+| 무엇을 | `attachment` 바디에 상자 geom `handcam_body` + 재질 `handcam_gray`. RealSense D405 크기(42 × 42 × 23 mm). 렌즈 면이 두 카메라 위치(플랜지 축에서 앞쪽 5 cm, 플랜지 높이), 몸체는 그 뒤(위쪽)로만 |
+| 물리 | `contype · conaffinity 0`, `density 0`. 고정 행동열 150스텝 상태 해시 `0865031e24813db1` 이 전후 같다. 질량 합 22.395553 그대로, geom 62 → 63 |
+| 정책 화면 | 바뀐다. front 128px 의 약 5%, 손목 128px 의 약 3% 픽셀 — 상자와 그 **그림자**. MuJoCo 는 geom 하나만 그림자를 끌 수 없다(alpha 0.999 로도 그림자가 남는 것 확인) |
+| 시연 호환 | 이 패치 전에 녹화한 UR5e 시연(기준 서버 `data/ur5e_place_cube_demo` 29판 등)은 화면이 조금 다르다. 새 학습에는 패치 뒤에 녹화한 시연을 쓴다 |
+| 설치된 곳 갱신 | `02_setup_project.sh` 의 패치 적용이 "앞에서부터 이미 적용된 가장 긴 k 개" 를 찾아 새 패치만 얹도록 바뀌었다. 새 설치 · 0007 까지 설치 · 0008 까지 설치 · 손댄 사본 네 경우를 임시 clone 으로 확인 |
+| 재현 점검 | `docs/patches/README.md` 절차, lerobot 6 · gym-hil 8 적용 OK, 차이 0건 |
+

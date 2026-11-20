@@ -209,16 +209,27 @@ series_applied() {   # $1=저장소  $2..=패치(절대경로). 고정 커밋에
   rm -rf "$T"; return $rc
 }
 apply_patches() {   # $1=저장소 디렉터리  $2=패치 glob
-  local repo="$1" glob="$2" p all=()
+  local repo="$1" glob="$2" p all=() i k n
   for p in $glob; do [ -e "$p" ] && all+=("$ROOT/$p"); done
-  for p in $glob; do
-    [ -e "$p" ] || continue
-    if git -C "$repo" apply --check "$ROOT/$p" 2>/dev/null; then git -C "$repo" apply "$ROOT/$p"; echo "  적용: $p"
-    elif git -C "$repo" apply --reverse --check "$ROOT/$p" 2>/dev/null; then echo "  이미 적용됨: $p"
-    # 뒤 패치가 같은 파일을 또 고치면(gym-hil 0007 이 0002·0005 위에 얹힌다) 앞 패치는 혼자서는
-    # 역적용 검사가 안 된다. 그때는 패치 전체를 고정 커밋에 적용한 결과와 지금 파일을 비교한다.
-    elif series_applied "$repo" "${all[@]}"; then echo "  이미 적용됨: $p 부터 끝까지 (패치 전체 결과와 파일이 같다)"; return 0
-    else echo "  !! 적용 실패: $p ($repo 버전이 고정 커밋이 아닌지 확인)"; exit 1; fi
+  n=${#all[@]}
+  for ((i = 0; i < n; i++)); do
+    p="${all[$i]}"
+    if git -C "$repo" apply --check "$p" 2>/dev/null; then git -C "$repo" apply "$p"; echo "  적용: ${p#"$ROOT"/}"
+    elif git -C "$repo" apply --reverse --check "$p" 2>/dev/null; then echo "  이미 적용됨: ${p#"$ROOT"/}"
+    else
+      # 뒤 패치가 같은 파일을 또 고치면(gym-hil 0007 이 0002·0005 위에, 0008 이 0006 위에 얹힌다) 앞 패치는
+      # 혼자서는 역적용 검사가 안 된다. 그때는 "고정 커밋에 앞에서부터 k 개를 적용한 결과" 가 지금 파일과 같은
+      # 가장 긴 k 를 찾는다. 그 k 개는 이미 적용된 것이고, 나머지(나중에 추가된 패치)만 이어서 적용한다.
+      # 전에는 전체(n 개)만 비교해서, 패치가 하나 늘면 이미 설치된 곳(RunPod pod 등)에서 02 가 멈췄다(2026-11-20).
+      for ((k = n; k > i; k--)); do
+        if series_applied "$repo" "${all[@]:0:k}"; then
+          if [ "$k" = "$n" ]; then echo "  이미 적용됨: ${p#"$ROOT"/} 부터 끝까지 (패치 전체 결과와 파일이 같다)"; return 0; fi
+          echo "  이미 적용됨: ${p#"$ROOT"/} 부터 $(basename "${all[$((k - 1))]}") 까지 (앞 ${k}개를 적용한 결과와 파일이 같다)"
+          i=$((k - 1)); continue 2
+        fi
+      done
+      echo "  !! 적용 실패: ${p#"$ROOT"/} ($repo 버전이 고정 커밋이 아닌지 확인)"; exit 1
+    fi
   done
 }
 apply_patches third_party/lerobot "docs/patches/000*.patch"

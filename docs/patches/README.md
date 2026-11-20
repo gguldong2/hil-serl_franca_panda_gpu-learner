@@ -12,8 +12,10 @@ gym-hil  0.1.14   f89b3e5556798c44ef95083d92b670afa89d110a
 패치는 **번호 순서대로, 각 저장소 루트에서** `git apply` 한다.
 `02_setup_project.sh` 는 이미 적용된 패치를 `--reverse --check` 로 알아내 건너뛰므로
 여러 번 돌려도 안전하다. 뒤 패치가 같은 파일을 다시 고쳐 앞 패치가 혼자서는 역검사되지 않을 때
-(gym-hil `0007` 이 `0002`·`0005` 위에 얹힌다)는, 패치 전체를 고정 커밋에 적용한 결과와 지금 파일을
-비교해 같으면 건너뛴다.
+(gym-hil `0007` 이 `0002`·`0005` 위에, `0008` 이 `0006` 위에 얹힌다)는, **고정 커밋에 앞에서부터 k 개를 적용한
+결과가 지금 파일과 같은 가장 긴 k** 를 찾아 그 k 개는 건너뛰고 나머지만 적용한다.
+그래서 이미 설치된 곳(RunPod pod 등)에서 `git pull` 로 패치가 하나 늘어도 `02` 를 다시 돌리면 새 패치만 얹힌다
+(2026-11-20 — 전에는 패치 전체 결과만 비교해, 패치가 늘면 "적용 실패" 로 멈췄다).
 
 ---
 
@@ -38,6 +40,7 @@ gym-hil  0.1.14   f89b3e5556798c44ef95083d92b670afa89d110a
 | `0004-keyboard-config-passthrough` | `wrappers/hil_wrappers.py` | 키맵 설정을 래퍼까지 전달 |
 | `0005-robot-neutral-arm-dof` | `mujoco_gym_env.py` | 팔 관절 수를 `range(1, 8)`(Panda 7축 고정) 대신 XML 이름 규약 `joint1..N` / `actuator1..N` 에서 자동 탐지. `_panda_dof_ids` → `_arm_dof_ids`. Panda 동작은 비트 단위로 동일(UR5e PRD Phase 1) |
 | `0006-ur5e-assets` | `assets/ur5e.xml`, `assets/place_cube_scene_ur5e.xml` | **UR5e 로봇 자산** (신규 파일만). Menagerie UR5e 팔에 `panda.xml` 의 2F-85 그리퍼·손목 카메라 서브트리를 그대로 접붙이고, 액추에이터를 토크 `<motor>` 로. 장면은 `place_cube_scene.xml` 에서 include 한 줄만 다르다 |
+| `0008-ur5e-wrist-camera-body` | `assets/ur5e.xml` | **UR5e 손목 카메라 몸체** — 보이지 않던 손목 카메라(`handcam_rgb` · `handcam_depth`) 자리에 RealSense D405 크기(42 × 42 × 23 mm) 상자. 렌즈 면이 카메라 위치에, 몸체는 그 뒤로만. 충돌 없음 · 질량 0 이라 **물리는 비트 단위로 같다**(고정 행동열 150스텝 상태 해시 일치). **정책 화면은 조금 바뀐다** — front 에 상자, 두 카메라 모두에 그림자(MuJoCo 는 geom 하나만 그림자를 끌 수 없다). 이 패치 전에 녹화한 UR5e 시연과 섞지 않는다 |
 | `0007-ur5e-place-cube-env` | `envs/ur5e_place_gym_env.py`, `envs/__init__.py`, `__init__.py`, `wrappers/factory.py`, `mujoco_gym_env.py` | **UR5ePlaceCube 태스크** — `panda_place_gym_env.py` 의 복사본에서 home·작업 범위·장면만 UR5e 로. `UR5ePlaceCube{Base,Viewer,,Keyboard,KeyboardWindow,Gamepad}-v0` 등록. `FrankaGymEnv` 에 로봇별 opspace 게인 인자 `opspace_kwargs` 추가(UR5e 는 `nullspace_stiffness=0`; Panda 는 안 넘겨 기존과 동일) |
 
 > `0003` 은 `0001` 위에 얹히도록 만들어져 있다. 순서를 지켜야 한다.
@@ -81,7 +84,8 @@ echo "위에 아무것도 안 나오면 완전 일치."
 rm -rf "$T"
 ```
 
-마지막 확인: **2026-10-23, lerobot 6개 / gym-hil 7개 모두 적용 OK + UR5e 메시, 차이 0건.** (UR5e PRD Phase 3 후)
+마지막 확인: **2026-11-20, lerobot 6개 / gym-hil 8개 모두 적용 OK + UR5e 메시, 차이 0건.** (gym-hil `0008` 추가 후. 메시는 로컬 고정 커밋 사본으로 대조)
+그 전: 2026-10-23, lerobot 6개 / gym-hil 7개 (UR5e PRD Phase 3 후)
 
 ---
 
